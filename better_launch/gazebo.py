@@ -354,7 +354,7 @@ def spawn_world_transform(gazebo_world_frame: str = None) -> Node:
 
 
 def spawn_topic_bridge(
-    *topics: Union[str, "GazeboBridge"],
+    *bridges: Union[str, "GazeboBridge"],
     node_name: str = "gz_bridge",
     remaps: dict[str, str] = None,
     cmd_args: list[str] = None,
@@ -387,18 +387,19 @@ def spawn_topic_bridge(
 
     all_remaps = {}
 
-    topics: list[str] = list(topics)
-    for i, t in enumerate(topics):
-        if isinstance(t, GazeboBridge):
-            if t.remaps:
-                all_remaps.update(t.remaps)
+    bridges: list[str] = list(bridges)
+    for i, b in enumerate(bridges):
+        if not isinstance(b, GazeboBridge):
+            b = GazeboBridge.from_string(b)
+            bridges[i] = b
 
-            topics[i] = str(t)
+        if b.remaps:
+            all_remaps.update(b.remaps)
 
     if remaps:
         all_remaps.update(remaps)
 
-    args = list(topics)
+    args = [str(b) for b in bridges]
     if cmd_args:
         args.extend(cmd_args)
 
@@ -413,19 +414,19 @@ def spawn_topic_bridge(
 
 
 def spawn_image_bridge(
-    *topics: Union[str, "GazeboBridge"],
+    *bridges: Union[str, "GazeboBridge"],
     node_name: str = "img_bridge",
     remaps: dict[str, str] = None,
     cmd_args: list[str] = None, 
-    qos: str = "sensor_data",
+    qos: str = None,
     **kwargs,
 ) -> Node:
     """Spawn a bridge to efficiently relay images from Gazebo to ROS2 (one direction only).
 
     Parameters
     ----------
-    topics : list[str]
-        The image topics to bridge. These can be specified as either Gazebo bridge definitions, :py:class:`GazeboBridge` instances, or regular topics.
+    bridges : list[str | GazeboBridge]
+        The image topics to bridge. These can be specified as either Gazebo bridge definitions, :py:class:`GazeboBridge` instances. Also accepts regular topics, in which case the type is assumed to be `sensor_msgs/Image`.
     node_name : str, optional
         The name of the node running the bridge.
     remaps : dict[str, str], optional
@@ -433,7 +434,7 @@ def spawn_image_bridge(
     cmd_args : list[str], optional
         Additional commandline arguments to the bridge executable.
     qos : str, optional
-        The `ROS2 quality of service <https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html>`_ definition to use. 
+        The `ROS2 quality of service <https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html>`_ definition to use. Note that this is not supported in all versions of ros-gz-image and may cause the bridge to terminate.
 
     Returns
     -------
@@ -447,29 +448,29 @@ def spawn_image_bridge(
     """
     all_remaps = {}
 
-    topics: list[GazeboBridge] = list(topics)
-    for i, t in enumerate(topics):
-        if not isinstance(t, GazeboBridge):
+    bridges: list[GazeboBridge] = list(bridges)
+    for i, b in enumerate(bridges):
+        if not isinstance(b, GazeboBridge):
             try:
-                t = GazeboBridge.from_string(t)
+                b = GazeboBridge.from_string(b)
             except ValueError:
-                t = GazeboBridge.from_string(f"{t}@sensor_msgs/msg/Image]gz.msgs.Image")
+                b = GazeboBridge.from_string(f"{b}@sensor_msgs/msg/Image]gz.msgs.Image")
             
-            topics[i] = t
+            bridges[i] = b
 
-        if not t.is_image_bridge:
-            raise ValueError("Cannot relay non-image bridges")
+        if not b.is_image_bridge:
+            raise ValueError(f"{b} is not an image bridge")
 
-        if t.remaps:
-            all_remaps.update(t.remaps)
+        if b.remaps:
+            all_remaps.update(b.remaps)
 
     if remaps:
         all_remaps.update(remaps)
 
-    for src in topics:
+    for src in bridges:
         dst = all_remaps.get(src.topic, src.topic)
         for ext in ("/compressed", "/compressedDepth", "/theora"):
-            all_remaps.setdefault(src + ext, dst + ext)
+            all_remaps.setdefault(src.topic + ext, dst + ext)
 
     args = cmd_args or []
     if qos:
