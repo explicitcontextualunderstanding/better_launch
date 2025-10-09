@@ -25,6 +25,8 @@ def find_ros2_node_processes() -> list[psutil.Process]:
     - __ns:=<namespace>
     - __node:=<name>
     - __name:=<name>
+    - namespace:<fnmatch>:=<namespace>
+    - nodename:<fnmatch>:=<name>
 
     If any of these are present, the process will be added to the returned list.
 
@@ -48,6 +50,8 @@ def find_ros2_node_processes() -> list[psutil.Process]:
                 or "__ns:=" in cmd
                 or "__node:=" in cmd
                 or "__name:=" in cmd
+                or "namespace:" in cmd
+                or "nodename:" in cmd
             ):
                 ret.append(p)
         except psutil.ZombieProcess:
