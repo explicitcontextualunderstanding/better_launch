@@ -1,0 +1,14 @@
+pkg = "composition"
+
+[my_composer]
+func = "compose"
+
+[my_composer.children.comp_talker]
+func = "component"
+package = "${pkg}"
+plugin = "composition::Talker"
+
+[my_composer.children.comp_listener]
+func = "component"
+package = "${pkg}"
+plugin = "composition::Listener"
