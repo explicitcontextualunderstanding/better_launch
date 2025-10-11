@@ -1,5 +1,9 @@
+# the pkg
+# is wild
 pkg = "composition"
 
+
+# The COMPOSER
 [my_composer]
 func = "compose"
 
