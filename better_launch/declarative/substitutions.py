@@ -183,7 +183,7 @@ def apply_substitutions(
 
     Substitution strings are expected to follow the "ROS1 pattern": `$(key *args)`, where `key` is a substitution type and `*args` are additional arguments to the substitution handler.
 
-    This function will handle the following substitutions:
+    If no other substitutions are specified, this function will handle the following ones:
     - $(param ...)
     - $(env ...)
     - $(eval ...)
