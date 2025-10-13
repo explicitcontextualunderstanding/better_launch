@@ -1,17 +1,12 @@
 from typing import Any
 import inspect
-from pathlib import Path
 import contextlib
-from ast import literal_eval
 import logging
-import click
 
 from better_launch import BetterLaunch
-from better_launch.utils.better_logging import (
-    Colormode,
-    init_logging,
-)
-from better_launch.ros import logging as roslog
+from better_launch.wrapper import _exec_launch_func
+from better_launch.utils.better_logging import Colormode
+from better_launch.utils.click import LaunchArg
 
 from .toml_parser import load as load_toml
 from .substitutions import apply_substitutions
@@ -30,14 +25,16 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
     valid_funcs = set(f for f in bl.__dict__.keys() if not f.startswith("_"))
     results = dict(bl.launch_args)
 
-    # Not needed right now
-    # bl_toml_format = int(content.get("bl_toml_format", toml_format_version))
+    bl_toml_format = int(toml.get("bl_toml_format", toml_format_version))
+    if bl_toml_format != toml_format_version:
+        print(f"Warning: TOML launch file has unexpected format version {bl_toml_format}")
+
     bl_eval_mode = toml.get("bl_eval_mode", "full")
 
     def exec_request(key: str, req: dict) -> Any:
         if "func" not in req:
             return
-        
+
         for attr, val in req.items():
             req[attr] = apply_substitutions(val, results, eval_type=bl_eval_mode)
 
@@ -63,13 +60,15 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
         children = None
         if "children" not in func_sig.parameters:
             children = req.pop("children", None)
-         
+
         res = func(**req)
         results[key] = res
 
         if children:
             if not isinstance(res, contextlib.AbstractContextManager):
-                logging.getLogger().warning(f"{req} has 'children' key, but did not result in a context object - children will be ignored")
+                logging.getLogger().warning(
+                    f"{req} has 'children' key, but did not result in a context object - children will be ignored"
+                )
                 return
 
             with res:
@@ -89,8 +88,40 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
     return results
 
 
+def _get_launch_args(toml: dict) -> list[LaunchArg]:
+    args = []
+
+    for key, val in toml.items():
+        if key.startswith("_"):
+            continue
+
+        if isinstance(val, dict) and "func" in val:
+            continue
+
+        if isinstance(val, type):
+            # no default value
+            ptype = val
+            default = None
+        else:
+            ptype = type(val)
+            default = val
+
+        description = toml.get(f"__comment_{key}__")
+
+        args.append(
+            LaunchArg(
+                key,
+                ptype,
+                default,
+                description,
+            )
+        )
+
+    return args
+
+
 def launch_toml(
-    path: str, 
+    path: str,
     *,
     ui: bool = False,
     join: bool = True,
@@ -159,157 +190,29 @@ def launch_toml(
     dict[str, Any]
         The results of the executed calls.
     """
-    # FIXME a lot more to do, see launch_this for details (sigint setup, read env variables, etc)
-
     toml: dict = load_toml(path)
-    options = []
+    launch_args = _get_launch_args(toml)
+    docstring = toml.get("__comment__")
 
-    # Collect the launch args
-    for key, val in toml.items():
-        if key.startswith("_"):
-            continue
+    ui = toml.get("bl_ui_override", str(ui)) in ("true", "enable", "1")
+    colormode = Colormode[toml.get("bl_colormode_override", colormode.name)]
+    screen_log_format = toml.get("bl_screen_log_format_override", screen_log_format)
+    file_log_format = toml.get("bl_file_log_format_override", file_log_format)
 
-        if isinstance(val, dict) and "func" in val:
-            continue
-
-        if isinstance(val, type):
-            # no default value
-            ptype = val
-            default = None
-        else:
-            ptype = type(val)
-            default = val
-
-        docstring = toml.get(f"__comment_{key}__")
-
-        options.append(
-            click.Option(
-                [f"--{key}"],
-                type=ptype,
-                default=default,
-                show_default=True,
-                help=docstring,
-            )
-        )
-
-    # TODO move click setup to utility function
-    # Additional overrides for launch arguments
-    def click_ui_override(ctx: click.Context, param: click.Parameter, value: str):
-        if value != "unset":
-            nonlocal ui
-            ui = value == "enable"
-        return value
-
-    def click_colormode_override(
-        ctx: click.Context, param: click.Parameter, value: str
-    ):
-        if value:
-            nonlocal colormode
-            colormode = Colormode[value.upper()]
-        return value
-
-    # NOTE these should be mirrored in the bl script
-    options.extend(
-        [
-            click.Option(
-                ["--bl_ui_override"],
-                type=click.types.Choice(
-                    ["enable", "disable", "unset"], case_sensitive=False
-                ),
-                show_choices=True,
-                default="unset",
-                help="Override to enable/disable the terminal UI",
-                expose_value=False,  # not passed to our run method
-                callback=click_ui_override,
-            ),
-            click.Option(
-                ["--bl_colormode_override"],
-                type=click.types.Choice([c.name for c in Colormode], case_sensitive=False),
-                show_choices=True,
-                default=Colormode.DEFAULT.name,
-                help="Override the logging color mode",
-                expose_value=False,
-                callback=click_colormode_override,
-            ),
-        ]
-    )
-
-    def launch_wrapper():
-        # Execute the launch function!
-        try:
-            _execute_toml(toml)
-        except Exception as e:
-            bl = BetterLaunch.instance()
-            if bl and not bl.is_shutdown:
-                bl.shutdown(f"Exception in launch file: {e}")
-
-            raise
-
-        # Retrieve the BetterLaunch singleton
-        bl = BetterLaunch()
-
-        # The UI will manage spinning itself
-        if join and not ui:
-            bl.spin(exit_with_last_node=not keep_alive)
-
-    @click.pass_context
-    def run(ctx: click.Context, *args, **kwargs):
-        if args:
-            raise ValueError(
-                "Positional arguments are not supported for toml launch files"
-            )
-
-        init_logging(
-            roslog.launch_config, screen_log_format, file_log_format, colormode
-        )
-
-        # Apply the launch arguments from click
+    def run(*args, **kwargs):
         toml.update(kwargs)
-        
-        assert (
-            len(ctx.args) % 2 == 0
-        ), "All arguments need to be '--<key> <value>' tuples"
+        _execute_toml(toml)
 
-        # Add additional launch arguments
-        for (i,) in range(0, len(ctx.args), 2):
-            (key,) = ctx.args[i]
-            if not key.startswith("-"):
-                raise ValueError("Argument keys must start with a dash")
-
-            val = ctx.args[i + 1]
-            try:
-                val = literal_eval(val)
-            except Exception:
-                # Keep val as a string
-                pass
-
-            toml[key.strip("-")] = val
-
-        BetterLaunch._launch_func_args = toml
-        
-        if ui:
-            from better_launch.tui.better_tui import BetterTui
-
-            app = BetterTui(
-                launch_wrapper, 
-                manage_foreign_nodes=manage_foreign_nodes,
-                keep_alive=keep_alive,
-            )
-            app.run()
-        else:
-            launch_wrapper()
-
-    launch_doc = toml.get("__comment__")
-    click_cmd = click.Command(
-        Path(path).name, callback=run, params=options, help=launch_doc
+    _exec_launch_func(
+        run,
+        launch_args,
+        docstring,
+        ui=ui,
+        join=join,
+        colormode=colormode,
+        screen_log_format=screen_log_format,
+        file_log_format=file_log_format,
+        manage_foreign_nodes=manage_foreign_nodes,
+        keep_alive=keep_alive,
+        allow_kwargs=True,
     )
-    
-    # TODO should we allow arbitrary launch args not specified in the toml?
-    #click_cmd.allow_extra_args = True
-    #click_cmd.ignore_unknown_options = True
-
-    try:
-        click_cmd.main()
-    except SystemExit as e:
-        if e.code != 0:
-            raise
