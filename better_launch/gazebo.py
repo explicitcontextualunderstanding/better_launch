@@ -415,7 +415,7 @@ def spawn_topic_bridge(
 
 def spawn_image_bridge(
     *bridges: Union[str, "GazeboBridge"],
-    node_name: str = "img_bridge",
+    node_name: str = None,
     remaps: dict[str, str] = None,
     cmd_args: list[str] = None, 
     qos: str = None,
@@ -435,7 +435,9 @@ def spawn_image_bridge(
         Additional commandline arguments to the bridge executable.
     qos : str, optional
         The `ROS2 quality of service <https://docs.ros.org/en/rolling/Concepts/Intermediate/About-Quality-of-Service-Settings.html>`_ definition to use. Note that this is not supported in all versions of ros-gz-image and may cause the bridge to terminate.
-
+    kwargs : dict[str, Any]
+        Additional node arguments.
+    
     Returns
     -------
     Node
@@ -468,11 +470,16 @@ def spawn_image_bridge(
         all_remaps.update(remaps)
 
     for src in bridges:
-        dst = all_remaps.get(src.topic, src.topic)
-        for ext in ("/compressed", "/compressedDepth", "/theora"):
-            all_remaps.setdefault(src.topic + ext, dst + ext)
+        if src.topic in all_remaps:
+            dst = all_remaps[src.topic]
+            for ext in ("/compressed", "/compressedDepth", "/theora"):
+                all_remaps.setdefault(src.topic + ext, dst + ext)
 
-    args = cmd_args or []
+    args = [b.topic for b in bridges]
+    
+    if cmd_args:
+        args.extend(cmd_args)
+    
     if qos:
         args.extend(["--ros-args", f"qos:={qos}"])
 
@@ -482,7 +489,7 @@ def spawn_image_bridge(
     return bl.node(
         f"{ros_gz}_image",
         "image_bridge",
-        f"{node_name}_image",
+        node_name,
         remaps=all_remaps,
         cmd_args=args,
         **kwargs
