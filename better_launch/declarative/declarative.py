@@ -21,8 +21,8 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("BetterLaunch has already been initialized")
 
     # Initialize the launcher instance
-    bl = BetterLaunch.instance()
-    valid_funcs = set(f for f in bl.__dict__.keys() if not f.startswith("_"))
+    bl = BetterLaunch()
+    valid_funcs = set(f for f in BetterLaunch.__dict__ if not f.startswith("_"))
     results = dict(bl.launch_args)
 
     bl_toml_format = int(toml.get("bl_toml_format", toml_format_version))
@@ -36,7 +36,8 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
             return
 
         for attr, val in req.items():
-            req[attr] = apply_substitutions(val, results, eval_type=bl_eval_mode)
+            if isinstance(val, str):
+                req[attr] = apply_substitutions(val, None, results, eval_type=bl_eval_mode)
 
         if not req.pop("if", True):
             return
@@ -45,7 +46,7 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
             return
 
         # If not specified assume we're creating a node
-        func_name = req["func"]
+        func_name = req.pop("func")
         if func_name not in valid_funcs:
             raise KeyError(f"func='{func_name}' is not a valid request")
 
@@ -77,7 +78,7 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
                     raise ValueError(f"Children of {key} must be specified as a dict")
 
                 for subkey, child in children.items():
-                    exec_request(key + "." + subkey, child)
+                    exec_request(subkey, child)
 
     for key, val in toml.items():
         if isinstance(val, dict):
