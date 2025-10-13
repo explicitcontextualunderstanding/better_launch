@@ -636,6 +636,7 @@ Takeoff in 3... 2... 1...
                 filename = resolve(filename)
 
             if os.path.isabs(filename):
+                self.logger.info(f"find({package}, {filename}, {subdir}) -> {filename}")
                 return filename
 
         if not package:
@@ -654,6 +655,7 @@ Takeoff in 3... 2... 1...
             base_path = resolve(base_path)
 
         if not filename and subdir in (None, "", "**"):
+            self.logger.info(f"find({package}, {filename}, {subdir}) -> {base_path}")
             return base_path
 
         if not subdir:
@@ -662,17 +664,23 @@ Takeoff in 3... 2... 1...
         for candidate in Path(base_path).glob(subdir):
             if not filename:
                 # Return the first candidate
-                return str(candidate.resolve().absolute())
+                ret = str(candidate.resolve().absolute())
+                self.logger.info(f"find({package}, {filename}, {subdir}) -> {ret}")
+                return ret
 
             if candidate.is_file() and candidate.match(f"**/{filename}"):
                 # We found a match
-                return str(candidate.resolve().absolute())
+                ret = str(candidate.resolve().absolute())
+                self.logger.info(f"find({package}, {filename}, {subdir}) -> {ret}")
+                return ret
 
             elif candidate.is_dir():
                 # Candidate is a dir, search the filename within
                 ret = next(candidate.glob(f"**/{filename}"), None)
                 if ret:
-                    return str(ret.resolve().absolute())
+                    ret = str(candidate.resolve().absolute())
+                    self.logger.info(f"find({package}, {filename}, {subdir}) -> {ret}")
+                    return ret
 
         raise ValueError(
             f"Could not find file or directory (filename={filename}, package={package}, subdir={subdir}), searched path was {base_path}"
