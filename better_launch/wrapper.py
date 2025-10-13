@@ -1,4 +1,4 @@
-from typing import Callable, get_args
+from typing import Callable
 import os
 import platform
 from ast import literal_eval
@@ -31,7 +31,7 @@ def launch_this(
     join: bool = True,
     screen_log_format: str = None,
     file_log_format: str = None,
-    colormode: Colormode = "default",
+    colormode: Colormode = Colormode.DEFAULT,
     manage_foreign_nodes: bool = False,
     keep_alive: bool = False,
 ):
@@ -86,7 +86,7 @@ def _launch_this_wrapper(
     join: bool = True,
     screen_log_format: str = None,
     file_log_format: str = None,
-    colormode: Colormode = "default",
+    colormode: Colormode = Colormode.DEFAULT,
     manage_foreign_nodes: bool = False,
     keep_alive: bool = False,
 ):
@@ -157,7 +157,7 @@ def _launch_this_wrapper(
     # Env overrides, will be superseded by command line args if implemented
     screen_log_format = os.environ.get("BL_SCREEN_LOG_FORMAT_OVERRIDE", screen_log_format)
     file_log_format = os.environ.get("BL_FILE_LOG_FORMAT_OVERRIDE", file_log_format)
-    colormode = os.environ.get("BL_COLORMODE_OVERRIDE", colormode)
+    colormode = Colormode[os.environ.get("BL_COLORMODE_OVERRIDE", Colormode.DEFAULT.name).upper()]
     
     env_ui = os.environ.get("BL_UI_OVERRIDE", "").lower()
     if env_ui in ("enable", "true", "1"):
@@ -248,7 +248,7 @@ def _launch_this_wrapper(
     ):
         if value:
             nonlocal colormode
-            colormode = value
+            colormode = Colormode[value.upper()]
         return value
 
     # NOTE these should be mirrored in the bl script
@@ -267,9 +267,9 @@ def _launch_this_wrapper(
             ),
             click.Option(
                 ["--bl_colormode_override"],
-                type=click.types.Choice(get_args(Colormode), case_sensitive=False),
+                type=click.types.Choice([c.name for c in Colormode], case_sensitive=False),
                 show_choices=True,
-                default=get_args(Colormode)[0],
+                default=Colormode.DEFAULT.name,
                 help="Override the logging color mode",
                 expose_value=False,
                 callback=click_colormode_override,

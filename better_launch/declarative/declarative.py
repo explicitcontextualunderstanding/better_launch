@@ -7,6 +7,12 @@ import logging
 import click
 
 from better_launch import BetterLaunch
+from better_launch.utils.better_logging import (
+    Colormode,
+    init_logging,
+)
+from better_launch.ros import logging as roslog
+
 from .toml_parser import load as load_toml
 from .substitutions import apply_substitutions
 
@@ -14,8 +20,8 @@ from .substitutions import apply_substitutions
 toml_format_version = 1
 
 
-# TODO remove substitutions from BetterLaunch?
 def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
+    """Execute each call table and apply substitutions."""
     if BetterLaunch.instance():
         raise RuntimeError("BetterLaunch has already been initialized")
 
@@ -84,7 +90,15 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
 
 
 def launch_toml(
-    path: str, *, join: bool = True, ui: bool = False, keep_alive: bool = False
+    path: str, 
+    *,
+    ui: bool = False,
+    join: bool = True,
+    screen_log_format: str = None,
+    file_log_format: str = None,
+    colormode: Colormode = Colormode.DEFAULT,
+    manage_foreign_nodes: bool = False,
+    keep_alive: bool = False,
 ) -> None:
     """Execute a TOML better_launch launchfile.
 
@@ -145,6 +159,8 @@ def launch_toml(
     dict[str, Any]
         The results of the executed calls.
     """
+    # FIXME a lot more to do, see launch_this for details (sigint setup, read env variables, etc)
+
     toml: dict = load_toml(path)
     options = []
 
@@ -176,7 +192,47 @@ def launch_toml(
             )
         )
 
-    # TODO additional bl args
+    # TODO move click setup to utility function
+    # Additional overrides for launch arguments
+    def click_ui_override(ctx: click.Context, param: click.Parameter, value: str):
+        if value != "unset":
+            nonlocal ui
+            ui = value == "enable"
+        return value
+
+    def click_colormode_override(
+        ctx: click.Context, param: click.Parameter, value: str
+    ):
+        if value:
+            nonlocal colormode
+            colormode = Colormode[value.upper()]
+        return value
+
+    # NOTE these should be mirrored in the bl script
+    options.extend(
+        [
+            click.Option(
+                ["--bl_ui_override"],
+                type=click.types.Choice(
+                    ["enable", "disable", "unset"], case_sensitive=False
+                ),
+                show_choices=True,
+                default="unset",
+                help="Override to enable/disable the terminal UI",
+                expose_value=False,  # not passed to our run method
+                callback=click_ui_override,
+            ),
+            click.Option(
+                ["--bl_colormode_override"],
+                type=click.types.Choice([c.name for c in Colormode], case_sensitive=False),
+                show_choices=True,
+                default=Colormode.DEFAULT.name,
+                help="Override the logging color mode",
+                expose_value=False,
+                callback=click_colormode_override,
+            ),
+        ]
+    )
 
     def launch_wrapper():
         # Execute the launch function!
@@ -203,12 +259,16 @@ def launch_toml(
                 "Positional arguments are not supported for toml launch files"
             )
 
-        assert (
-            len(ctx.args) % 2 == 0
-        ), "All arguments need to be '--<key> <value>' tuples"
+        init_logging(
+            roslog.launch_config, screen_log_format, file_log_format, colormode
+        )
 
         # Apply the launch arguments from click
         toml.update(kwargs)
+        
+        assert (
+            len(ctx.args) % 2 == 0
+        ), "All arguments need to be '--<key> <value>' tuples"
 
         # Add additional launch arguments
         for (i,) in range(0, len(ctx.args), 2):
