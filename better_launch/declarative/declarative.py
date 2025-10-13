@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 import inspect
 import contextlib
 import logging
@@ -15,7 +15,7 @@ from .substitutions import apply_substitutions
 toml_format_version = 1
 
 
-def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
+def _execute_toml(toml: dict[str, Any], eval_mode: Literal["full", "literal", "none"]) -> dict[str, Any]:
     """Execute each call table and apply substitutions."""
     if BetterLaunch.instance():
         raise RuntimeError("BetterLaunch has already been initialized")
@@ -25,19 +25,13 @@ def _execute_toml(toml: dict[str, Any]) -> dict[str, Any]:
     valid_funcs = set(f for f in BetterLaunch.__dict__ if not f.startswith("_"))
     results = dict(bl.launch_args)
 
-    bl_toml_format = int(toml.get("bl_toml_format", toml_format_version))
-    if bl_toml_format != toml_format_version:
-        print(f"Warning: TOML launch file has unexpected format version {bl_toml_format}")
-
-    bl_eval_mode = toml.get("bl_eval_mode", "full")
-
     def exec_request(key: str, req: dict) -> Any:
         if "func" not in req:
             return
 
         for attr, val in req.items():
             if isinstance(val, str):
-                req[attr] = apply_substitutions(val, None, results, eval_type=bl_eval_mode)
+                req[attr] = apply_substitutions(val, None, results, eval_type=eval_mode)
 
         if not req.pop("if", True):
             return
@@ -121,17 +115,7 @@ def _get_launch_args(toml: dict) -> list[LaunchArg]:
     return args
 
 
-def launch_toml(
-    path: str,
-    *,
-    ui: bool = False,
-    join: bool = True,
-    screen_log_format: str = None,
-    file_log_format: str = None,
-    colormode: Colormode = Colormode.DEFAULT,
-    manage_foreign_nodes: bool = False,
-    keep_alive: bool = False,
-) -> None:
+def launch_toml(path: str,) -> None:
     """Execute a TOML better_launch launchfile.
 
     In better_launch TOML launch files, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public :py:class:`BetterLaunch` member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table's name.
@@ -178,8 +162,16 @@ def launch_toml(
     In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions).
 
     Lastly, there are a couple of special keys:
-    - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is `1`.
+    - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is :py:data:`toml_format_version`.
     - `bl_eval_mode`: if and how `$(eval ...)` substitutions should be supported. `full`: regular eval. `literal`: only literals (uses :py:meth:`ast.literal_eval`). `none`: don't evaluate and return the substitution content verbatim.
+    - `bl_ui`: default value for starting the UI
+    - `bl_join`: whether to join the processes better_launch starts
+    - `bl_colormode`: default colormode
+    - `bl_screen_log_format`: default terminal output format
+    - `bl_file_log_format`: default file log format
+    - `bl_manage_foreign_nodes`: whether to show foreign nodes in the UI
+    - `bl_keep_alive`: whether to keep running after the last node exits
+    - `bl_allow_kwargs`: whether additional launch arguments are allowed
 
     Parameters
     ----------
@@ -195,17 +187,26 @@ def launch_toml(
     launch_args = _get_launch_args(toml)
     docstring = toml.get("__comment__")
 
-    ui = toml.get("bl_ui_override", str(ui)) in ("true", "enable", "1")
-    colormode = Colormode[toml.get("bl_colormode_override", colormode.name)]
-    screen_log_format = toml.get("bl_screen_log_format_override", screen_log_format)
-    file_log_format = toml.get("bl_file_log_format_override", file_log_format)
+    toml_format = int(toml.get("bl_toml_format", toml_format_version))
+    if toml_format != toml_format_version:
+        print(f"Warning: TOML launch file has unexpected format version {toml_format}")
 
-    def run(*args, **kwargs):
+    eval_mode = toml.get("bl_eval_mode", "full")
+    ui = toml.get("bl_ui", "false") in ("true", "enable", "1")
+    join = toml.get("bl_join", True)
+    colormode = Colormode[toml.get("bl_colormode", Colormode.DEFAULT.name)]
+    screen_log_format = toml.get("bl_screen_log_format", None)
+    file_log_format = toml.get("bl_file_log_format", None)
+    manage_foreign_nodes = toml.get("bl_manage_foreign_nodes", False)
+    keep_alive = toml.get("bl_keep_alive", False)
+    allow_kwargs = toml.get("bl_allow_kwargs", True)
+
+    def launch_func(*args, **kwargs):
         toml.update(kwargs)
-        _execute_toml(toml)
+        _execute_toml(toml, eval_mode=eval_mode)
 
     _exec_launch_func(
-        run,
+        launch_func,
         launch_args,
         docstring,
         ui=ui,
@@ -215,5 +216,5 @@ def launch_toml(
         file_log_format=file_log_format,
         manage_foreign_nodes=manage_foreign_nodes,
         keep_alive=keep_alive,
-        allow_kwargs=True,
+        allow_kwargs=allow_kwargs,
     )
