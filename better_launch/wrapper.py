@@ -77,7 +77,7 @@ def launch_this(
         
         func_doc = doc.parse(func.__doc__)
 
-        argspec = inspect.getfullargspec(launch_func)
+        argspec = inspect.getfullargspec(func)
         allow_kwargs = argspec[2] is not None
 
         return _exec_launch_func(

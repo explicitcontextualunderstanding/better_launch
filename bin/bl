@@ -12,7 +12,7 @@ bl <package> <launchfile> <launch-args>
 See --help and readme for further details.
 """
 
-from typing import Any, get_args
+from typing import Any
 import sys
 import os
 import ast
@@ -113,7 +113,10 @@ class LaunchFile:
         raise NotImplementedError()
 
 
-class BetterLaunchFile(LaunchFile):
+# TODO BetterLaunchToml
+
+
+class BetterLaunchPython(LaunchFile):
     """This LaunchFile will handle better_launch launch files.
     """
 
@@ -161,6 +164,7 @@ class BetterLaunchFile(LaunchFile):
                 )
             )
 
+        # FIXME use Overrides class and bl click helpers!
         # NOTE these should match the overrides in wrapper.py
         options.extend([
             click.Option(
@@ -175,10 +179,10 @@ class BetterLaunchFile(LaunchFile):
             click.Option(
                 ["--bl_colormode_override"],
                 type=click.types.Choice(
-                    get_args(Colormode), case_sensitive=False
+                    [c.name for c in Colormode], case_sensitive=False
                 ),
                 show_choices=True,
-                default=get_args(Colormode)[0],
+                default=Colormode.DEFAULT.name,
                 help="Override the logging color mode",
             )
         ])
@@ -186,7 +190,7 @@ class BetterLaunchFile(LaunchFile):
         return options, launchfunc_doc
 
     def __init__(self, package: str, filepath: str):
-        params, doc = BetterLaunchFile._get_launch_params_and_doc_bl(filepath)
+        params, doc = BetterLaunchPython._get_launch_params_and_doc_bl(filepath)
         launchfile = os.path.basename(filepath)
         super().__init__(package, launchfile, filepath, params, doc)
 
