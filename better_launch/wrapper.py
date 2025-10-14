@@ -73,7 +73,7 @@ def launch_this(
     """
 
     def decoration_helper(func):
-        launch_args = _get_launch_args(func)
+        launch_args = _get_func_launch_args(func)
         
         func_doc = doc.parse(func.__doc__)
 
@@ -126,11 +126,11 @@ def _init_signal_handlers() -> None:
         signal.signal(signal.SIGQUIT, sigterm_handler)
 
 
-def _get_launch_args(launch_func: Callable) -> list[LaunchArg]:
-    launch_func_sig = inspect.signature(launch_func)
+def _get_func_launch_args(func: Callable) -> list[LaunchArg]:
+    launch_func_sig = inspect.signature(func)
 
     # Extract more fine-grained information from the docstring
-    parsed_doc = doc.parse(launch_func.__doc__)
+    parsed_doc = doc.parse(func.__doc__)
     param_docstrings = {p.arg_name: p.description for p in parsed_doc.params}
 
     launch_args = []

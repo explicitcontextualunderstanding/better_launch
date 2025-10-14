@@ -43,6 +43,7 @@ except ImportError:
 
 from better_launch import __version__
 from better_launch.utils.introspection import get_launchfunc_signature_from_file
+from better_launch.utils.click import LaunchArg, Overrides, get_click_options, get_click_overrides
 from better_launch.utils.better_logging import Colormode
 
 
@@ -113,9 +114,6 @@ class LaunchFile:
         raise NotImplementedError()
 
 
-# TODO BetterLaunchToml
-
-
 class BetterLaunchPython(LaunchFile):
     """This LaunchFile will handle better_launch launch files.
     """
@@ -141,6 +139,7 @@ class BetterLaunchPython(LaunchFile):
             launchfunc_doc = ""
             param_docstrings = {}
 
+        # FIXME use Overrides class and bl click helpers!
         options = []
         for param in signature.parameters.values():
             default = None
@@ -164,7 +163,6 @@ class BetterLaunchPython(LaunchFile):
                 )
             )
 
-        # FIXME use Overrides class and bl click helpers!
         # NOTE these should match the overrides in wrapper.py
         options.extend([
             click.Option(
@@ -200,6 +198,46 @@ class BetterLaunchPython(LaunchFile):
             flush=True,
         )
 
+        # First argument becomes argv[0], so should be the program name
+        args = ["python3", self.filepath]
+        for key, arg in kwargs.items():
+            if arg is not None:
+                args.extend([f"--{key}", arg])
+
+        # This does NOT return and will replace our executable with the new executable in the same process
+        os.execvp("python3", [str(a) for a in args])
+
+
+class BetterLaunchToml(LaunchFile):
+    @classmethod
+    def _get_launch_params_and_doc_bl(
+        cls, filepath: str
+    ) -> tuple[list[click.Option], str]:
+        from better_launch.declarative.declarative import _get_toml_launch_args, load_toml
+
+        toml = load_toml(filepath)
+        doc = toml.get("__comment__")
+        launch_args = _get_toml_launch_args(toml)
+
+        overrides = Overrides()
+        options = get_click_options(launch_args)
+        options.extend(get_click_overrides(overrides))
+
+        # TODO handle overrides
+        return options, doc
+
+    def __init__(self, package: str, filepath: str):
+        params, doc = BetterLaunchToml._get_launch_params_and_doc_bl(filepath)
+        launchfile = os.path.basename(filepath)
+        super().__init__(package, launchfile, filepath, params, doc)
+
+    def run(self, ctx: click.Context, **kwargs) -> None:
+        print(
+            f">> Delegating to better_launch: {self.package}/{self.launchfile}, args={kwargs}",
+            flush=True,
+        )
+
+        # TODO what are we running?
         # First argument becomes argv[0], so should be the program name
         args = ["python3", self.filepath]
         for key, arg in kwargs.items():

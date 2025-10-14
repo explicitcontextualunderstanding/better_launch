@@ -83,7 +83,7 @@ def _execute_toml(toml: dict[str, Any], eval_mode: Literal["full", "literal", "n
     return results
 
 
-def _get_launch_args(toml: dict) -> list[LaunchArg]:
+def _get_toml_launch_args(toml: dict) -> list[LaunchArg]:
     args = []
 
     for key, val in toml.items():
@@ -184,7 +184,7 @@ def launch_toml(path: str,) -> None:
         The results of the executed calls.
     """
     toml: dict = load_toml(path)
-    launch_args = _get_launch_args(toml)
+    launch_args = _get_toml_launch_args(toml)
     docstring = toml.get("__comment__")
 
     toml_format = int(toml.get("bl_toml_format", toml_format_version))
