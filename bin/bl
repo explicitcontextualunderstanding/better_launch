@@ -115,7 +115,7 @@ class LaunchFile:
 
 
 class BetterLaunchPython(LaunchFile):
-    """This LaunchFile will handle better_launch launch files.
+    """This LaunchFile will handle better_launch python launch files.
     """
 
     @classmethod
@@ -125,67 +125,26 @@ class BetterLaunchPython(LaunchFile):
         if not filepath.lower().endswith(".launch.py"):
             raise ValueError("Not a python file")
 
-        _, signature, doc = get_launchfunc_signature_from_file(filepath)
+        from better_launch.wrapper import _get_func_launch_args
+
+        _, signature, func_doc = get_launchfunc_signature_from_file(filepath)
         if not signature:
             raise ValueError("Not a better_launch launch file")
 
-        if doc:
-            parsed_doc = parse_docstring(doc)
-            launchfunc_doc = parsed_doc.short_description
+        launch_args = _get_func_launch_args(signature, func_doc)
+
+        overrides = Overrides()
+        options = get_click_options(launch_args)
+        options.extend(get_click_overrides(overrides, expose=True))
+
+        doc = ""
+        if func_doc:
+            parsed_doc = parse_docstring(func_doc)
+            doc = parsed_doc.short_description
             if parsed_doc.long_description:
-                launchfunc_doc += "\n\n" + parsed_doc.long_description
-            param_docstrings = {p.arg_name: p.description for p in parsed_doc.params}
-        else:
-            launchfunc_doc = ""
-            param_docstrings = {}
+                doc += "\n\n" + parsed_doc.long_description
 
-        # FIXME use Overrides class and bl click helpers!
-        options = []
-        for param in signature.parameters.values():
-            default = None
-            if param.default is not param.empty:
-                default = param.default
-
-            ptype = None
-            if default is None and param.annotation is not param.empty:
-                ptype = param.annotation
-                if isinstance(ptype, str):
-                    # If it's a primitive type we can parse it, otherwise ignore it
-                    ptype = getattr(__builtins__, ptype, None)
-
-            options.append(
-                click.Option(
-                    [f"--{param.name}"],
-                    type=ptype,
-                    default=default,
-                    show_default=True,
-                    help=param_docstrings.get(param.name, None),
-                )
-            )
-
-        # NOTE these should match the overrides in wrapper.py
-        options.extend([
-            click.Option(
-                ["--bl_ui_override"],
-                type=click.types.Choice(
-                    ["enable", "disable", "unset"], case_sensitive=False
-                ),
-                show_choices=True,
-                default="unset",
-                help="Override to enable/disable the terminal UI",
-            ),
-            click.Option(
-                ["--bl_colormode_override"],
-                type=click.types.Choice(
-                    [c.name for c in Colormode], case_sensitive=False
-                ),
-                show_choices=True,
-                default=Colormode.DEFAULT.name,
-                help="Override the logging color mode",
-            )
-        ])
-
-        return options, launchfunc_doc
+        return options, doc
 
     def __init__(self, package: str, filepath: str):
         params, doc = BetterLaunchPython._get_launch_params_and_doc_bl(filepath)
@@ -209,10 +168,16 @@ class BetterLaunchPython(LaunchFile):
 
 
 class BetterLaunchToml(LaunchFile):
+    """This LaunchFile will handle better_launch TOML launch files.
+    """
+
     @classmethod
     def _get_launch_params_and_doc_bl(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
+        if not filepath.lower().endswith(".launch.toml"):
+            raise ValueError("Not a toml file")
+
         from better_launch.declarative.declarative import _get_toml_launch_args, load_toml
 
         toml = load_toml(filepath)
@@ -221,9 +186,8 @@ class BetterLaunchToml(LaunchFile):
 
         overrides = Overrides()
         options = get_click_options(launch_args)
-        options.extend(get_click_overrides(overrides))
+        options.extend(get_click_overrides(overrides, expose=True))
 
-        # TODO handle overrides
         return options, doc
 
     def __init__(self, package: str, filepath: str):

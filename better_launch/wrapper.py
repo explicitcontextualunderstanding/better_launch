@@ -73,7 +73,8 @@ def launch_this(
     """
 
     def decoration_helper(func):
-        launch_args = _get_func_launch_args(func)
+        sig = inspect.signature(func)
+        launch_args = _get_func_launch_args(sig, func.__doc__)
         
         func_doc = doc.parse(func.__doc__)
 
@@ -126,17 +127,17 @@ def _init_signal_handlers() -> None:
         signal.signal(signal.SIGQUIT, sigterm_handler)
 
 
-def _get_func_launch_args(func: Callable) -> list[LaunchArg]:
-    launch_func_sig = inspect.signature(func)
-
+def _get_func_launch_args(signature: inspect.Signature, docstring: str = None) -> list[LaunchArg]:
     # Extract more fine-grained information from the docstring
-    parsed_doc = doc.parse(func.__doc__)
-    param_docstrings = {p.arg_name: p.description for p in parsed_doc.params}
+    param_docstrings = {}
+    if docstring:
+        parsed_doc = doc.parse(docstring)
+        param_docstrings = {p.arg_name: p.description for p in parsed_doc.params}
 
     launch_args = []
 
     # Create CLI options for click
-    for param in launch_func_sig.parameters.values():
+    for param in signature.parameters.values():
         ptype = None
         default = None
 
@@ -147,6 +148,9 @@ def _get_func_launch_args(func: Callable) -> list[LaunchArg]:
             ptype = type(default)
         elif param.annotation is not param.empty:
             ptype = param.annotation
+            if isinstance(ptype, str):
+                # If it's a primitive type we can parse it, otherwise ignore it
+                ptype = getattr(__builtins__, ptype, None)
 
         # type, default, docstring
         launch_args.append(

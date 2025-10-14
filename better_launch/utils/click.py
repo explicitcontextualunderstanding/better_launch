@@ -58,7 +58,7 @@ def get_click_options(launch_args: Iterable[LaunchArg]) -> list[click.Option]:
     return options
 
 
-def get_click_overrides(overrides: Overrides) -> list[click.Option]:
+def get_click_overrides(overrides: Overrides, expose: bool = False) -> list[click.Option]:
     # Additional overrides for launch arguments
     def set_override_ui(ctx: click.Context, param: click.Parameter, value: str):
         if value != "unset":
@@ -80,7 +80,7 @@ def get_click_overrides(overrides: Overrides) -> list[click.Option]:
             show_choices=True,
             default="unset",
             help="Override to enable/disable the terminal UI",
-            expose_value=False,  # not passed to our run method
+            expose_value=expose,  # not passed to our run method
             callback=set_override_ui,
         ),
         click.Option(
@@ -89,7 +89,7 @@ def get_click_overrides(overrides: Overrides) -> list[click.Option]:
             show_choices=True,
             default=Colormode.DEFAULT.name,
             help="Override the logging color mode",
-            expose_value=False,
+            expose_value=expose,
             callback=set_override_colormode,
         ),
     ]
