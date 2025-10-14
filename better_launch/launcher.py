@@ -683,7 +683,7 @@ Takeoff in 3... 2... 1...
                     return ret
 
         raise ValueError(
-            f"Could not find file or directory (filename={filename}, package={package}, subdir={subdir}), searched path was {base_path}"
+            f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
         )
 
     def resolve_string(self, s: str) -> str:
