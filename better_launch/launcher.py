@@ -636,7 +636,7 @@ Takeoff in 3... 2... 1...
                 filename = resolve(filename)
 
             if os.path.isabs(filename):
-                self.logger.info(f"find({package}, {filename}, {subdir}) -> {filename}")
+                self.logger.info(f"find({package}, {filename}, {subdir}):1 -> {filename}")
                 return filename
 
         if not package:
@@ -655,7 +655,7 @@ Takeoff in 3... 2... 1...
             base_path = resolve(base_path)
 
         if not filename and subdir in (None, "", "**"):
-            self.logger.info(f"find({package}, {filename}, {subdir}) -> {base_path}")
+            self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
             return base_path
 
         if not subdir:
@@ -665,21 +665,21 @@ Takeoff in 3... 2... 1...
             if not filename:
                 # Return the first candidate
                 ret = str(candidate.resolve().absolute())
-                self.logger.info(f"find({package}, {filename}, {subdir}) -> {ret}")
+                self.logger.info(f"find({package}, {filename}, {subdir}):3 -> {ret}")
                 return ret
 
             if candidate.is_file() and candidate.match(f"**/{filename}"):
                 # We found a match
                 ret = str(candidate.resolve().absolute())
-                self.logger.info(f"find({package}, {filename}, {subdir}) -> {ret}")
+                self.logger.info(f"find({package}, {filename}, {subdir}):4 -> {ret}")
                 return ret
 
             elif candidate.is_dir():
                 # Candidate is a dir, search the filename within
                 ret = next(candidate.glob(f"**/{filename}"), None)
                 if ret:
-                    ret = str(candidate.resolve().absolute())
-                    self.logger.info(f"find({package}, {filename}, {subdir}) -> {ret}")
+                    ret = str(ret.resolve().absolute())
+                    self.logger.info(f"find({package}, {filename}, {subdir}):5 -> {ret}")
                     return ret
 
         raise ValueError(
