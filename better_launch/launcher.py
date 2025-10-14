@@ -1375,8 +1375,8 @@ Takeoff in 3... 2... 1...
         lifecycle_waittime: float = 0.01,
         lifecycle_target: LifecycleStage = LifecycleStage.ACTIVE,
         raw: bool = False,
-        remap_namespace_key: str = "__ns",
-        remap_name_key: str = "__node",
+        remap_qualifier: str = None,
+        qualify_all_remaps: bool = False,
     ) -> Node:
         """Create a new ROS2 node process. The bread and butter of every ROS setup!
 
@@ -1428,10 +1428,10 @@ Takeoff in 3... 2... 1...
             The lifecycle stage to bring the node into after starting. Has no effect if `autostart_process` is False or if the node does not appear to be a lifecycle node after waiting `ros_waittime + lifecycle_waittime`.
         raw : bool, optional
             If True, don't treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.
-        remap_namespace_key : str, optional
-            Key to use for remapping the node's namespace. "Useful" in cases where you want to e.g. remap topics separate from services. See `this ROS2 design doc <https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.
-        remap_name_key : str, optional
-            Key to use for remapping the node's name. Useful to prevent remapping multiple nodes to the same name, which can happen if a node creates additional nodes (e.g. `controller_manager`). See `this issue <https://github.com/ros2/rviz/issues/671>`_ for more information.
+        remap_qualifier : str, optional
+            Additional qualifier that will precede the node's `__ns` and `__name` remap rules. Should be the original name of the node (i.e. whatever its default name is) and can be qualified with a namespace. Useful to prevent multiple nodes with the same name when a process can have more than one node (e.g. `controller_manager`). See `this ROS2 design doc <https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.
+        qualify_all_remaps : bool, optional
+            If True, apply the `remap_qualifier` to all remaps that are not already qualified.
 
         Returns
         -------
@@ -1476,8 +1476,8 @@ Takeoff in 3... 2... 1...
             respawn_delay=respawn_delay,
             use_shell=use_shell,
             raw=raw,
-            remap_namespace_key=remap_namespace_key,
-            remap_name_key=remap_name_key,
+            remap_qualifier=remap_qualifier,
+            qualify_all_remaps=qualify_all_remaps,
         )
 
         group.add_node(node)

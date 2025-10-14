@@ -263,18 +263,18 @@ def static_transform_publisher(
 
 
 def spawn_controller_manager(
-    robot_description: str,
     controller_config: str | dict[str, Any] = None,
+    robot_description_or_topic: str = None,
     name: str = "controller_manager",
 ) -> Node:
     """Spawn a new controller manager.
 
     Parameters
     ----------
-    robot_description : str
-        The contents of a robot description to use. Can be read with :py:meth:`read_robot_description`.
     controller_config : str | dict[str, Any], optional
         The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via :py:meth:`BetterLaunch.load_params`. 
+    robot_description : str, optional
+        Either a topic to read the robot description from, or the contents of a robot description (not recommended anymore, but see :py:meth:`read_robot_description` if you are interested nonetheless).
     name : str, optional
         The name the controller manager node should use. 
 
@@ -285,20 +285,31 @@ def spawn_controller_manager(
     """
     bl = BetterLaunch.instance()
 
-    params = {"robot_description": robot_description}
+    params = {}
+    remaps = {}
 
     if isinstance(controller_config, str):
         controller_config = bl.load_params(controller_config)
-    params.update(controller_config)
+    
+    if controller_config:
+        params = controller_config
+
+    if robot_description_or_topic:
+        if robot_description_or_topic.startswith("<"):
+            params["robot_description"] = robot_description_or_topic
+        else:
+            # Assume it's a topic
+            remaps["~/robot_description"] = robot_description_or_topic
 
     return bl.node(
         package="controller_manager",
         executable="ros2_control_node",
         name=name,
         params=params,
+        remaps=remaps,
         # Prevent renaming nodes spawned by the manager
         # See https://robotics.stackexchange.com/q/99005/36544
-        remap_name_key="nodename:controller_manager",
+        remap_qualifier="controller_manager",
     )
 
 

@@ -3,6 +3,8 @@ import os
 import time
 import psutil
 import signal
+import logging
+from fnmatch import fnmatch
 import re
 import json
 import threading
@@ -25,8 +27,6 @@ def find_ros2_node_processes() -> list[psutil.Process]:
     - __ns:=<namespace>
     - __node:=<name>
     - __name:=<name>
-    - namespace:<fnmatch>:=<namespace>
-    - nodename:<fnmatch>:=<name>
 
     If any of these are present, the process will be added to the returned list.
 
@@ -50,8 +50,6 @@ def find_ros2_node_processes() -> list[psutil.Process]:
                 or "__ns:=" in cmd
                 or "__node:=" in cmd
                 or "__name:=" in cmd
-                or "namespace:" in cmd
-                or "nodename:" in cmd
             ):
                 ret.append(p)
         except psutil.ZombieProcess:
@@ -76,7 +74,7 @@ def find_process_for_node(namespace: str, name: str) -> list[psutil.Process]:
         A list processes that match the above criteria.
     """
     r_pkg = re.compile(rf"__ns:={namespace}")
-    r_name = re.compile(rf"__node:={name}")
+    r_name = re.compile(rf"__(?:node|name):={name}")
 
     candidates = []
 
@@ -211,14 +209,38 @@ def parse_process_args(
                     namespace = val
                 elif key in ["__name", "__node"]:
                     node_name = val
-                else:
-                    if ":" in key:
-                        # ROS2 supports a pattern where the key is preceded by the
-                        # node's name to make node-specific remaps for e.g. components
-                        name, key = key.split(":", maxsplit=1)
-                        if node and name != node.name:
+                elif ":" in key:
+                    # ROS2 supports a pattern where the key is preceded by the
+                    # node's name to make node-specific remaps for e.g. components
+                    qualifier, key = key.split(":", maxsplit=1)
+                    # TODO if we have the node we don't need the node name...?
+                    if node:
+                        if qualifier != node.name and not fnmatch(node.fullname, qualifier):
                             continue
-                    remaps[key] = val
+
+                    # NOTE: an especially unhinged developer could write a node process creating
+                    # multiple nodes and then start them like
+                    #
+                    #   -r __name:=X -r node1:__name:=Y -r node2:__name:=Z ...
+                    #
+                    # In this case we will get multiple matches here unless we have a node name to
+                    # look for. Even if there is an unqualified __ns or __name we cannot tell if 
+                    # it is overridden by a more specific remap rule unless we know the original 
+                    # node name.
+                    if key == "__ns":
+                        if namespace and not node:
+                            logging.getLogger().warning(
+                                f"Node process {process.pid} has ambivalent namespace arguments: {cmd_args}"
+                            )
+                        namespace = val
+                    elif key in ["__name", "__node"]:
+                        if node_name and not node:
+                            logging.getLogger().warning(
+                                f"Node process {process.pid} has ambivalent node name arguments: {cmd_args}"
+                            )
+                        node_name = val
+                    else:
+                        remaps[key] = val
 
             elif arg == "--params-file":
                 skip = 1
@@ -248,14 +270,21 @@ def find_foreign_nodes() -> list[AbstractNode]:
     bl = BetterLaunch.instance()
 
     # bl.query_node would iterate over all nodes every time
-    bln = {
+    my_nodes = {
         n.fullname
         for n in bl.all_nodes(
             include_components=True, include_launch_service=False, include_foreign=False
         )
     }
-    foreign = [ForeignNode.wrap_process(p) for p in find_ros2_node_processes()]
-    return filter(lambda n: n.fullname not in bln, foreign)
+    
+    foreign = []
+    for p in find_ros2_node_processes():
+        try:
+            foreign.append(ForeignNode.wrap_process(p))
+        except Exception as e:
+            bl.logger.debug(f"Could not create foreign node: {e}", exc_info=True)
+
+    return filter(lambda n: n.fullname not in my_nodes, foreign)
 
 
 class ForeignNode(AbstractNode, LiveParamsMixin):
@@ -438,10 +467,10 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
 
     def _watch_process(self) -> None:
         # TODO Capture process output!
-        # To capture output we can use `strace -p1234 -s9999 -e write` where 1234 is the process 
+        # To capture output we can use `strace -p1234 -s9999 -e write` where 1234 is the process
         # pid. However, this requires sudo rights unless we got the "cap_sys_ptrace+ep" capability
         # granted. This can only be granted to binary programs, not to python scripts, so we'd have
-        # to create a small C++ binary (bl?). Alternatively we need to request sudo permissions, 
+        # to create a small C++ binary (bl?). Alternatively we need to request sudo permissions,
         # but the input line might get swepped away by other node logs...
 
         def wait():
@@ -453,7 +482,7 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
                 self.logger.warning("Process has finished cleanly")
             else:
                 self.logger.critical(f"Process has died with exit code {ret}")
-        
+
         # TODO this is probably a great use case for asyncio
         threading.Thread(target=wait, daemon=True).start()
 

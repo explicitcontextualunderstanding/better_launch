@@ -39,8 +39,8 @@ class Node(AbstractNode, LiveParamsMixin):
         respawn_delay: float = 0.0,
         use_shell: bool = False,
         raw: bool = False,
-        remap_namespace_key: str = "__ns",
-        remap_name_key: str = "__node",
+        remap_qualifier: str = None,
+        qualify_all_remaps: bool = False,
     ):
         """An object used for starting a ROS node and capturing its output.
 
@@ -82,10 +82,10 @@ class Node(AbstractNode, LiveParamsMixin):
             If True, invoke the node executable via the system shell. While this gives access to the shell's builtins, this has the downside of running the node inside a "mystery program" which is platform and user dependent. Generally not advised.
         raw : bool, optional
             If True, don't treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.
-        remap_namespace_key : str, optional
-            Key to use for remapping the node's namespace. "Useful" in cases where you want to e.g. remap topics separate from services. See `this ROS2 design doc <https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.
-        remap_name_key : str, optional
-            Key to use for remapping the node's name. Useful to prevent remapping multiple nodes to the same name, which can happen if a node creates additional nodes (e.g. `controller_manager`). See `this issue <https://github.com/ros2/rviz/issues/671>`_ for more information.
+        remap_qualifier : str, optional
+            Additional qualifier that will precede the node's `__ns` and `__name` remap rules. Should be the original name of the node (i.e. whatever its default name is) and can be qualified with a namespace. Useful to prevent multiple nodes with the same name when a process can have more than one node (e.g. `controller_manager`). See `this ROS2 design doc <https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.
+        qualify_all_remaps : bool, optional
+            If True, apply the `remap_qualifier` to all remaps that are not already qualified.
         """
         super().__init__(
             package, executable, name, namespace, remaps, params, output=output
@@ -104,8 +104,8 @@ class Node(AbstractNode, LiveParamsMixin):
         self._process: subprocess.Popen = None
         self._on_exit_callback = on_exit
         self.raw = raw
-        self._name_key = remap_name_key
-        self._namespace_key = remap_namespace_key
+        self.remap_qualifier = remap_qualifier
+        self.qualify_all_remaps = qualify_all_remaps
 
     @property
     def pid(self) -> int:
@@ -179,20 +179,18 @@ class Node(AbstractNode, LiveParamsMixin):
 
                 # Special args and remaps
                 # launch_ros/actions/node.py:206
-                for src, dst in self._ros_args().items():
-                    # More ROS2 shenanigans...
-                    if src == "__ns":
-                        if self._namespace_key:
-                            src = self._namespace_key
-                        else:
-                            continue
 
-                    # See https://github.com/ros2/rviz/issues/671
-                    if src in ("__node", "__name"):
-                        if self._name_key:
-                            src = self._name_key
-                        else:
-                            continue
+                # Qualifier to create node-specific remaps
+                qualifier = self.remap_qualifier
+                if qualifier and not qualifier.endswith(":"):
+                    qualifier += ":"
+                
+                for src, dst in self._ros_args().items():
+                    if qualifier:
+                        if src in ("__ns", "__node", "__name"):
+                            src = qualifier + src
+                        elif self.qualify_all_remaps and ":" not in src:
+                            src = qualifier + src
                     
                     final_cmd.extend(["-r", f"{src}:={dst}"])
 
