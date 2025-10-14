@@ -119,7 +119,7 @@ class BetterLaunchPython(LaunchFile):
     """
 
     @classmethod
-    def _get_launch_params_and_doc_bl(
+    def _get_launch_params_and_doc_bl_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith(".launch.py"):
@@ -147,7 +147,7 @@ class BetterLaunchPython(LaunchFile):
         return options, doc
 
     def __init__(self, package: str, filepath: str):
-        params, doc = BetterLaunchPython._get_launch_params_and_doc_bl(filepath)
+        params, doc = BetterLaunchPython._get_launch_params_and_doc_bl_python(filepath)
         launchfile = os.path.basename(filepath)
         super().__init__(package, launchfile, filepath, params, doc)
 
@@ -172,7 +172,7 @@ class BetterLaunchToml(LaunchFile):
     """
 
     @classmethod
-    def _get_launch_params_and_doc_bl(
+    def _get_launch_params_and_doc_bl_toml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith(".launch.toml"):
@@ -191,7 +191,7 @@ class BetterLaunchToml(LaunchFile):
         return options, doc
 
     def __init__(self, package: str, filepath: str):
-        params, doc = BetterLaunchToml._get_launch_params_and_doc_bl(filepath)
+        params, doc = BetterLaunchToml._get_launch_params_and_doc_bl_toml(filepath)
         launchfile = os.path.basename(filepath)
         super().__init__(package, launchfile, filepath, params, doc)
 
@@ -201,7 +201,7 @@ class BetterLaunchToml(LaunchFile):
             flush=True,
         )
 
-        # TODO what are we running?
+        # BUG what are we running?
         # First argument becomes argv[0], so should be the program name
         args = ["python3", self.filepath]
         for key, arg in kwargs.items():
@@ -246,7 +246,7 @@ class Ros2LaunchFile(LaunchFile):
         )
 
     @classmethod
-    def _get_launch_params_and_doc_ros2(
+    def _get_launch_params_and_doc_ros2_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith(".launch.py"):
@@ -293,7 +293,7 @@ class Ros2LaunchFile(LaunchFile):
         return options, doc
 
     @classmethod
-    def _get_launch_params_and_doc_xml(
+    def _get_launch_params_and_doc_ros2_xml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith(".launch.xml"):
@@ -317,7 +317,7 @@ class Ros2LaunchFile(LaunchFile):
         return options, doc
 
     @classmethod
-    def _get_launch_params_and_doc_yaml(
+    def _get_launch_params_and_doc_ros2_yaml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith((".launch.yml", ".launch.yaml")):
@@ -345,9 +345,9 @@ class Ros2LaunchFile(LaunchFile):
         launchfile = os.path.basename(filepath)
 
         for func in [
-            Ros2LaunchFile._get_launch_params_and_doc_ros2,
-            Ros2LaunchFile._get_launch_params_and_doc_xml,
-            Ros2LaunchFile._get_launch_params_and_doc_yaml,
+            Ros2LaunchFile._get_launch_params_and_doc_ros2_python,
+            Ros2LaunchFile._get_launch_params_and_doc_ros2_xml,
+            Ros2LaunchFile._get_launch_params_and_doc_ros2_yaml,
         ]:
             try:
                 params, doc = func(filepath)
@@ -477,7 +477,7 @@ class LaunchfileSelectionCLI(click.MultiCommand):
                     if os.access(path, os.X_OK):
                         executables.append(path)
                     elif include_launchfiles and (
-                        filename.endswith((".py", ".xml", ".yaml", ".yml"))
+                        filename.endswith((".py", ".xml", ".yaml", ".yml", ".toml"))
                         and ".launch." in filename
                     ):
                         executables.append(path)
