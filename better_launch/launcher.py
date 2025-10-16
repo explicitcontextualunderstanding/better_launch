@@ -14,6 +14,7 @@ from concurrent.futures import Future, CancelledError, TimeoutError
 from contextlib import contextmanager
 import logging
 import yaml
+import secrets
 
 from rclpy.node import (
     Node as RosNode,
@@ -127,6 +128,8 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         name: str = None,
         launch_args: dict[str, Any] = None,
         root_namespace: str = "/",
+        *,
+        anonymous_use_uuids: bool = False,
     ):
         """Note that BetterLaunch is a singleton: only the first invocation to `__init__` will succeed. All subsequent calls will return the previous instance. If you need access to the BetterLaunch instance outside your launch function, consider using one of the following classmethods instead:
         * :py:meth:`BetterLaunch.instance <_BetterLaunchMeta.instance>`
@@ -140,6 +143,8 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
             Override the launch arguments BetterLaunch has access to. By default this will be the launch function's arguments. These will mainly be used for passing to included launch files.
         root_namespace : str, optional
             The namespace of the root group.
+        anonymous_use_uuids : bool, optional
+            If True, use UUIDs for unique names instead of random words.
         """
         if not name:
             if not BetterLaunch._launchfile:
@@ -172,6 +177,8 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         self._sigterm_received = False
         self._shutdown_future = Future()
         self._shutdown_callbacks = []
+        
+        self.anonymous_use_uuids = anonymous_use_uuids
 
         self.hello()
 
@@ -262,7 +269,12 @@ Takeoff in 3... 2... 1...
             node_names.update(n.name for n in nodes)
 
         while True:
-            u = get_unique_name()
+            if self.anonymous_use_uuids:
+                u = secrets.token_hex(4)
+            else:
+                
+                u = "_" + get_unique_name()
+            
             if name:
                 u = name + "_" + u
 

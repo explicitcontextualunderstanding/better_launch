@@ -33,7 +33,7 @@ class UniqueNameGenerator:
         adj_idx = idx // len(self.nouns)
         noun_idx = idx % len(self.nouns)
 
-        return f"{self.adjectives[adj_idx]}_{self.nouns[noun_idx]}"
+        return f"{self.adjectives[adj_idx]}{self.nouns[noun_idx]}"
 
     def reset(self):
         """Shuffle and reset the generator"""
