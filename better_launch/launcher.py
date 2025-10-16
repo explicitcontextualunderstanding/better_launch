@@ -344,26 +344,20 @@ Takeoff in 3... 2... 1...
 
         return nodes
 
-    def live_nodes(self) -> list[AbstractNode]:
-        nodes = self.all_nodes(
-            include_components=True, include_launch_service=True, include_foreign=False
-        )
-        return [n for n in nodes if n.is_running]
-
     def query_node(
         self,
-        fullname_regex: str,
+        pattern: str,
         *,
         include_components: bool = True,
         include_launch_service: bool = False,
         include_foreign: bool = False,
     ) -> AbstractNode:
-        """Retrieve the first node whos :py:meth:`AbstractNode.fullname` matches the provided regex.
+        """Retrieve the first node matching the provided pattern.
 
         Parameters
         ----------
-        name_regex : str
-            The regex to match the nodes' full names against.
+        pattern : str
+            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups.
         include_components : bool, optional
             Whether to include components in the results, if any.
         include_launch_service : bool, optional
@@ -374,34 +368,32 @@ Takeoff in 3... 2... 1...
         Returns
         -------
         AbstractNode
-            The first node matching the provided regex, or None if none matched.
+            The first node matching the provided pattern, or None if none matched.
         """
-        # TODO regex seems like the wrong call, maybe fnmatch?
-        reg = re.compile(fullname_regex)
         for node in self.all_nodes(
             include_components=include_components,
             include_launch_service=include_launch_service,
             include_foreign=include_foreign,
         ):
-            if reg.fullmatch(node.fullname):
+            if node.name == pattern or fnmatch(node.fullname, pattern):
                 return node
 
         return None
 
     def query_nodes(
         self,
-        name_regex: str,
+        pattern: str,
         *,
         include_components: bool = True,
         include_launch_service: bool = False,
         include_foreign: bool = False,
-    ) -> list[AbstractNode]:
-        """Retrieve all nodes whos :py:meth:`AbstractNode.fullname` matches the provided regex.
+    ) -> Generator[AbstractNode, None, None]:
+        """Yield all nodes matching the provided pattern.
 
         Parameters
         ----------
-        name_regex : str
-            The regex to match the nodes' full names against.
+        pattern : str
+            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups.
         include_components : bool, optional
             Whether to include components in the results, if any.
         include_launch_service : bool, optional
@@ -411,19 +403,16 @@ Takeoff in 3... 2... 1...
 
         Returns
         -------
-        list[AbstractNode]
-            A list of all nodes matching the regex.
+        Generator[AbstractNode, None, None]
+            The nodes matching the pattern.
         """
-        reg = re.compile(name_regex)
-        return [
-            node
-            for node in self.all_nodes(
-                include_components=include_components,
-                include_launch_service=include_launch_service,
-                include_foreign=include_foreign,
-            )
-            if reg.match(node.fullname)
-        ]
+        for node in self.all_nodes(
+            include_components=include_components,
+            include_launch_service=include_launch_service,
+            include_foreign=include_foreign,
+        ):
+            if node.name == pattern or fnmatch(node.fullname, pattern):
+                yield node
 
     @staticmethod
     def ros_distro() -> str:

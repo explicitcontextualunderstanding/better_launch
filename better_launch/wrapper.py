@@ -405,7 +405,7 @@ def _expose_ros2_launch_function(launch_func: Callable):
             # We must stay alive until the last node has exited
             bl = BetterLaunch.instance()
             if bl:
-                while any(bl.live_nodes()):
+                while any([n for n in bl.all_nodes() if n.is_running]):
                     await asyncio.sleep(0.1)
 
         # A bit of an obscure one, but this way we can stay alive even when all other launch
