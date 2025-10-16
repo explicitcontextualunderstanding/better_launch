@@ -8,6 +8,7 @@ import time
 import re
 import threading
 import subprocess
+from fnmatch import fnmatch
 from pathlib import Path
 from concurrent.futures import Future, CancelledError, TimeoutError
 from contextlib import contextmanager
@@ -311,6 +312,10 @@ Takeoff in 3... 2... 1...
         list[AbstractNode]
             A list of all nodes, sorted by when they were added.
         """
+
+        # TODO this won't find e.g. controller nodes loaded through ros2 control, 
+        # but ros2 node list does find them!
+
         nodes = []
         groups = self.all_groups()
 
@@ -360,6 +365,7 @@ Takeoff in 3... 2... 1...
         AbstractNode
             The first node matching the provided regex, or None if none matched.
         """
+        # TODO regex seems like the wrong call, maybe fnmatch?
         reg = re.compile(fullname_regex)
         for node in self.all_nodes(
             include_components=include_components,
@@ -409,8 +415,8 @@ Takeoff in 3... 2... 1...
         ]
 
     @staticmethod
-    def ros_version() -> str:
-        """Returns the name of the currently sourced ros version (i.e. *$ROS_VERSION*)."""
+    def ros_distro() -> str:
+        """Returns the name of the currently sourced ros distro (i.e. *$ROS_DISTRO*)."""
         return os.environ["ROS_DISTRO"]
 
     @property
@@ -446,6 +452,7 @@ Takeoff in 3... 2... 1...
         """The most recent group."""
         return self._group_stack[-1]
 
+    # TODO remove?
     def find_group_for_namespace(self, namespace: str, create: bool = False) -> Group:
         """Find the group representing the passed namespace.
 
@@ -723,15 +730,16 @@ Takeoff in 3... 2... 1...
 
     def load_params(
         self,
-        package: str,
-        configfile: str,
+        package: str = None,
+        configfile: str = None,
         subdir: str = None,
         *,
-        node_or_namespace: str | Node = None,
+        qualifier: str | Node = None,
+        matching_only: bool = False,
     ) -> dict[str, Any]:
         """Load parameters from a yaml file located through :py:meth:`find`.
 
-        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `node_or_namespace` was passed. Otherwise, if `node_or_namespace` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.
+        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `qualifier` was passed. Otherwise, if `qualifier` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.
 
         The following wildcards are supported for parameter sections:
         * `/**`: matches any number of tokens, may be followed by additional tokens and a node name
@@ -751,8 +759,10 @@ Takeoff in 3... 2... 1...
             The name of the config file to locate.
         subdir : str, optional
             A path fragment that the config file must be located in.
-        node_or_namespace : str | Node, optional
+        qualifier : str | Node, optional
             Used to specifiy which section of the config to return.
+        matching_only : bool, optional
+            If True, load only those params matching the qualifier. If no qualifier was given, only load global params (and those under `/**`).
 
         Returns
         -------
@@ -762,14 +772,20 @@ Takeoff in 3... 2... 1...
         Raises
         ------
         ValueError
-            If the path cannot be resolved, if `node_or_namespace` is supplied and no matching section could be found, or if a substitution failed.
+            If the path cannot be resolved, if `qualifier` is supplied and no matching section could be found, or if a substitution failed.
         IOError
             If the config file could not be read.
         """
         path = self.find(package, configfile, subdir)
 
         with open(path) as f:
-            params = yaml.safe_load(f)
+            content = f.read()
+            is_ros_params = ("ros__parameters" in content)
+            params = yaml.safe_load(content)
+
+        if not is_ros_params:
+            # Not a ros config, treat it as an ordinary yaml file
+            return params
 
         if "ros__parameters" in params:
             # Return the entire config if it doesn't contain sections for different nodes/namespaces
@@ -777,53 +793,20 @@ Takeoff in 3... 2... 1...
 
         final_params = {}
 
-        if node_or_namespace:
-            ns = node_or_namespace
-            if isinstance(ns, AbstractNode):
-                ns = ns.fullname
+        for key, val in params.items():
+            if not isinstance(val, dict):
+                # Something weird, but we don't mind
+                final_params[key] = val
 
-            ns = ns.strip("/")
+            elif key in ("**", "/**", "ros__parameters"):
+                # Unqualified parameters
+                val = val.get("ros__parameters", val)
+                final_params.update(val)
 
-            # See https://github.com/ros2/design/blob/gh-pages/articles/160_ros_command_line_arguments.md
-            def path_to_regex(path: str) -> str:
-                parts = path.strip("/").split("/")
-                regex_parts = []
-
-                for part in parts:
-                    if part == "**":
-                        # Match any number of tokens
-                        regex_parts.append(r".*")
-                    elif part == "*":
-                        # Match a single token
-                        regex_parts.append(r"[^/]+")
-                    else:
-                        # Regular token
-                        regex_parts.append(part)
-
-                # We do NOT start with a slash as only the node name could be specified
-                return "^" + "/".join(regex_parts) + "$"
-
-            # According to the above design document, params files are not allowed to have nesting,
-            # (e.g. my_namespace/: other_namespace/node: ros__parameters), so no need to delve
-            for key in params.keys():
-                pattern = path_to_regex(key)
-                if re.match(pattern, ns) is not None:
-                    final_params.update(params[key])
-                    # Don't break as there can be multiple matching entries due to wildcards
-                    # See https://docs.ros.org/en/jazzy/How-To-Guides/Node-arguments.html
-
-            if not final_params:
-                # We didn't find any matching parameters, so this either doesn't contain a section
-                # for this node, or it is not a ros parameters file
-                raise ValueError(f"No param section matching '{ns}'")
-        else:
-            # No node or namespace provided, so we don't know which section we should resolve
-            final_params = params
-
-        # Discard the ros__parameters section if it's at the root
-        if "ros__parameters" in final_params:
-            final_params.update(final_params["ros__parameters"])
-            final_params.pop("ros__parameters", None)
+            elif not matching_only or (qualifier and fnmatch(qualifier, key)):
+                # Qualify all parameters
+                val = val.get("ros__parameters", val)
+                final_params.update({f"{key}:{k}": v for k,v in val.items()})
 
         return final_params
 

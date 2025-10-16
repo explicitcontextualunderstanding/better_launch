@@ -115,7 +115,7 @@ class AbstractNode:
             if not bl:
                 return self._params
 
-            self._params = bl.load_params(None, self._params, node_or_namespace=self)
+            self._params = bl.load_params(None, self._params, qualifier=self)
 
         return self._params
 

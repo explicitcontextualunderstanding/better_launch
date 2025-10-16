@@ -832,11 +832,11 @@
         <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">subdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">node_or_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Node</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">qualifier</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Node</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load parameters from a yaml file located through :py:meth:`find`.</span>
 
-<span class="sd">        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `node_or_namespace` was passed. Otherwise, if `node_or_namespace` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</span>
+<span class="sd">        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `qualifier` was passed. Otherwise, if `qualifier` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</span>
 
 <span class="sd">        The following wildcards are supported for parameter sections:</span>
 <span class="sd">        * `/**`: matches any number of tokens, may be followed by additional tokens and a node name</span>
@@ -856,7 +856,7 @@
 <span class="sd">            The name of the config file to locate.</span>
 <span class="sd">        subdir : str, optional</span>
 <span class="sd">            A path fragment that the config file must be located in.</span>
-<span class="sd">        node_or_namespace : str | Node, optional</span>
+<span class="sd">        qualifier : str | Node, optional</span>
 <span class="sd">            Used to specifiy which section of the config to return.</span>
 
 <span class="sd">        Returns</span>
@@ -867,7 +867,7 @@
 <span class="sd">        Raises</span>
 <span class="sd">        ------</span>
 <span class="sd">        ValueError</span>
-<span class="sd">            If the path cannot be resolved, if `node_or_namespace` is supplied and no matching section could be found, or if a substitution failed.</span>
+<span class="sd">            If the path cannot be resolved, if `qualifier` is supplied and no matching section could be found, or if a substitution failed.</span>
 <span class="sd">        IOError</span>
 <span class="sd">            If the config file could not be read.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -882,8 +882,8 @@
 
         <span class="n">final_params</span> <span class="o">=</span> <span class="p">{}</span>
 
-        <span class="k">if</span> <span class="n">node_or_namespace</span><span class="p">:</span>
-            <span class="n">ns</span> <span class="o">=</span> <span class="n">node_or_namespace</span>
+        <span class="k">if</span> <span class="n">qualifier</span><span class="p">:</span>
+            <span class="n">ns</span> <span class="o">=</span> <span class="n">qualifier</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ns</span><span class="p">,</span> <span class="n">AbstractNode</span><span class="p">):</span>
                 <span class="n">ns</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">fullname</span>
 

@@ -301,7 +301,7 @@
             <span class="k">elif</span> <span class="n">arg</span> <span class="o">==</span> <span class="s2">&quot;--params-file&quot;</span><span class="p">:</span>
                 <span class="n">skip</span> <span class="o">=</span> <span class="mi">1</span>
                 <span class="n">param_file</span> <span class="o">=</span> <span class="n">cmd_args</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-                <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">bl</span><span class="o">.</span><span class="n">load_params</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">param_file</span><span class="p">,</span> <span class="n">node_or_namespace</span><span class="o">=</span><span class="n">node</span><span class="p">))</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">bl</span><span class="o">.</span><span class="n">load_params</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">param_file</span><span class="p">,</span> <span class="n">qualifier</span><span class="o">=</span><span class="n">node</span><span class="p">))</span>
 
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># No special handling</span>

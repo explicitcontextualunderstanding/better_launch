@@ -245,7 +245,7 @@ def parse_process_args(
             elif arg == "--params-file":
                 skip = 1
                 param_file = cmd_args[i + 1]
-                params.update(bl.load_params(None, param_file, node_or_namespace=node))
+                params.update(bl.load_params(None, param_file, qualifier=node))
 
             else:
                 # No special handling
