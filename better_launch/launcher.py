@@ -177,7 +177,7 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         self._sigterm_received = False
         self._shutdown_future = Future()
         self._shutdown_callbacks = []
-        
+
         self.short_unique_names = short_unique_names
 
         self.hello()
@@ -229,7 +229,7 @@ Takeoff in 3... 2... 1...
         """
         if exit_with_last_node:
             while not self._shutdown_future.done():
-                nodes = self.all_nodes(
+                nodes = self.get_bl_nodes(
                     include_components=True,
                     include_launch_service=True,
                     include_foreign=False,
@@ -265,7 +265,7 @@ Takeoff in 3... 2... 1...
         """
         node_names = set()
         if check_running_nodes:
-            nodes = self.all_nodes(include_components=True, include_foreign=True)
+            nodes = self.get_bl_nodes(include_components=True, include_foreign=True)
             node_names.update(n.name for n in nodes)
 
         while True:
@@ -273,14 +273,14 @@ Takeoff in 3... 2... 1...
                 u = secrets.token_hex(4)
             else:
                 u = get_unique_name()
-            
+
             if name:
                 u = name + "_" + u
 
             if u not in node_names:
                 return u
 
-    def all_groups(self) -> list[Group]:
+    def get_groups(self) -> list[Group]:
         """Returns a list of all in the order they were created.
 
         Returns
@@ -300,49 +300,78 @@ Takeoff in 3... 2... 1...
 
         return groups
 
-    def all_nodes(
+    def get_bl_nodes(
         self,
         *,
         include_components: bool = False,
         include_launch_service: bool = True,
         include_foreign: bool = False,
     ) -> list[AbstractNode]:
-        """Returns a list of all nodes in the order they were added. Components will be added right after their composers. If a ROS2 launch service has been started it will be added at the very end.
+        """Returns a list of all nodes in the order they were added. Components will be added right after their composers.
+
+        Note that this will only return nodes that can be managed by better_launch. If a node process creates multiple nodes only the first node can be discovered, as ROS2 does not provide an API linking a node to its process (or even just its package).
 
         Parameters
         ----------
         include_components : bool, optional
-            Whether to include :py:class:`Component` instances.
+            Whether to include :py:class:`Component` instances. This will *not* include components that have been loaded from outside (e.g. `ros2 component load`).
         include_launch_service : bool, optional
-            Whether to include the ROS2 launch service wrapper if it was created.
+            Whether to include the ROS2 launch service wrapper if it was created. Will be included after the regular nodes and before the foreign nodes.
         include_foreign : bool, optional
-            Whether to include foreign nodes that have not been started by this launcher instance.
+            Whether to include foreign nodes that have not been started by this launcher instance. Will be appended at the end of the returned nodes. However, take heed of the above warning regarding node discovery.
 
         Returns
         -------
         list[AbstractNode]
             A list of all nodes, sorted by when they were added.
         """
-
-        # TODO this won't find e.g. controller nodes loaded through ros2 control, 
-        # but ros2 node list does find them!
-
         nodes = []
-        groups = self.all_groups()
+        groups = self.get_groups()
 
         for g in groups:
             for n in g.nodes:
                 nodes.append(n)
                 if include_components and isinstance(n, Composer):
+                    # Components may have been added from outside (e.g. ros2 control load)
                     nodes.extend(n.managed_components)
 
         if include_launch_service and self._ros2_launcher:
             nodes.append(self._ros2_launcher)
 
         if include_foreign:
-            nodes.extend(find_foreign_nodes())
+            # Note that self.shared_node.get_node_names_and_namespaces() will only give us the node
+            # names and namespaces, but no handle on the actual process
+            # TODO should check if it's a composer
+            nodes.extend(self.get_foreign_nodes())
 
         return nodes
+
+    def get_foreign_nodes(self) -> list[ForeignNode]:
+        """Lists all running nodes that have a process but have not been started by this better_launch process.
+
+        Note however that if a process starts multiple nodes, only the first node can be discovered. This is because ROS2 does not provide an API for getting the process parameters from a node.
+
+        Returns
+        -------
+        list[ForeignNode]
+            All nodes with a process that have not been started by this better_launch process.
+        """
+        return find_foreign_nodes()
+
+    def all_ros2_node_names(self) -> list[str]:
+        """Returns a list of all currently registered node's full names (namespace + name). 
+        
+        This list is guaranteed to be complete as far as ROS2 is concerned. If you require a node object you can actually interact with consider using :py:meth:`query_node` or :py:meth:`get_bl_nodes` instead.
+
+        Returns
+        -------
+        list[str]
+            A list of all running nodes' full names.
+        """
+        return [
+            f"{n[1].rstrip('/')}/{n[0]}"
+            for n in self.shared_node.get_node_names_and_namespaces()
+        ]
 
     def query_node(
         self,
@@ -357,7 +386,7 @@ Takeoff in 3... 2... 1...
         Parameters
         ----------
         pattern : str
-            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups.
+            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups (via :py:meth:`fnmatch`).
         include_components : bool, optional
             Whether to include components in the results, if any.
         include_launch_service : bool, optional
@@ -370,7 +399,7 @@ Takeoff in 3... 2... 1...
         AbstractNode
             The first node matching the provided pattern, or None if none matched.
         """
-        for node in self.all_nodes(
+        for node in self.get_bl_nodes(
             include_components=include_components,
             include_launch_service=include_launch_service,
             include_foreign=include_foreign,
@@ -393,7 +422,7 @@ Takeoff in 3... 2... 1...
         Parameters
         ----------
         pattern : str
-            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups.
+            Either the name of a node, or a qualified node name (i.e. namespace + name). If a namespace is included it must be absolute, but may include `*` or `**` wildcards to skip one or more groups (via :py:meth:`fnmatch`).
         include_components : bool, optional
             Whether to include components in the results, if any.
         include_launch_service : bool, optional
@@ -406,7 +435,7 @@ Takeoff in 3... 2... 1...
         Generator[AbstractNode, None, None]
             The nodes matching the pattern.
         """
-        for node in self.all_nodes(
+        for node in self.get_bl_nodes(
             include_components=include_components,
             include_launch_service=include_launch_service,
             include_foreign=include_foreign,
@@ -550,7 +579,7 @@ Takeoff in 3... 2... 1...
             self.logger.info(f"Shutdown: {reason}")
 
         # Tell all nodes to shut down
-        for n in self.all_nodes(
+        for n in self.get_bl_nodes(
             include_components=False, include_launch_service=True, include_foreign=False
         ):
             try:
@@ -643,7 +672,9 @@ Takeoff in 3... 2... 1...
                 filename = resolve(filename)
 
             if os.path.isabs(filename):
-                self.logger.info(f"find({package}, {filename}, {subdir}):1 -> {filename}")
+                self.logger.info(
+                    f"find({package}, {filename}, {subdir}):1 -> {filename}"
+                )
                 return filename
 
         if not package:
@@ -686,7 +717,9 @@ Takeoff in 3... 2... 1...
                 ret = next(candidate.glob(f"**/{filename}"), None)
                 if ret:
                     ret = str(ret.resolve().absolute())
-                    self.logger.info(f"find({package}, {filename}, {subdir}):5 -> {ret}")
+                    self.logger.info(
+                        f"find({package}, {filename}, {subdir}):5 -> {ret}"
+                    )
                     return ret
 
         raise ValueError(
@@ -780,7 +813,7 @@ Takeoff in 3... 2... 1...
 
         with open(path) as f:
             content = f.read()
-            is_ros_params = ("ros__parameters" in content)
+            is_ros_params = "ros__parameters" in content
             params = yaml.safe_load(content)
 
         if not is_ros_params:
@@ -806,7 +839,7 @@ Takeoff in 3... 2... 1...
             elif not matching_only or (qualifier and fnmatch(qualifier, key)):
                 # Qualify all parameters
                 val = val.get("ros__parameters", val)
-                final_params.update({f"{key}:{k}": v for k,v in val.items()})
+                final_params.update({f"{key}:{k}": v for k, v in val.items()})
 
         return final_params
 

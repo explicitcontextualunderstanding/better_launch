@@ -272,7 +272,7 @@ def find_foreign_nodes() -> list[AbstractNode]:
     # bl.query_node would iterate over all nodes every time
     my_nodes = {
         n.fullname
-        for n in bl.all_nodes(
+        for n in bl.get_bl_nodes(
             include_components=True, include_launch_service=False, include_foreign=False
         )
     }

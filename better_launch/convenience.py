@@ -328,8 +328,10 @@ def spawn_controller(
     remaps: dict[str, str] = None,
     cmd_args: list[str] = None,
     manager: str = "controller_manager",
-) -> Node:
+) -> None:  # TODO find a way to return an interactable object
     """Spawn the specified controller.
+
+    Note that right now there is no way to directly interact with the loaded controller's node due to the limited API ROS2 provides. I will find a way...
 
     Parameters
     ----------
@@ -343,11 +345,6 @@ def spawn_controller(
         Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).
     manager : str, optional
         The name of the controller_manager node.
-
-    Returns
-    -------
-    Node
-        The node running the spawner process.
     """
     bl = BetterLaunch.instance()
     process_args = [controller, "--controller-manager", manager]

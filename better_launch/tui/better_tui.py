@@ -314,7 +314,7 @@ class BetterTui:
             self.footer_text = ""
 
             bl = BetterLaunch.instance()
-            self.nodes_snapshot = bl.all_nodes(
+            self.nodes_snapshot = bl.get_bl_nodes(
                 include_components=True,
                 include_launch_service=True,
                 include_foreign=self.manage_foreign_nodes,

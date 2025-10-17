@@ -46,6 +46,9 @@ def parambolage():
     print(manager.get_live_params())
 
     convenience.spawn_controller("joint_state_broadcaster")
-    print(bl.all_nodes(include_components=True, include_foreign=True))
+    pprint(bl.all_ros2_node_names())
+
+    # TODO since the controller is spawned inside the controller manager's process 
+    # it is currently not possible to interact with it from better_launch
     # controller = bl.query_node("/joint_state_broadcaster")
     # print(controller.get_live_params())
