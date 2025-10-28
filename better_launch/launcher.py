@@ -815,30 +815,40 @@ Takeoff in 3... 2... 1...
             is_ros_params = "ros__parameters" in content
             params = yaml.safe_load(content)
 
+        # Return the entire config if it doesn't follow the ros pattern
         if not is_ros_params:
-            # Not a ros config, treat it as an ordinary yaml file
             return params
 
+        # No node- or namespace specific sections
         if "ros__parameters" in params:
-            # Return the entire config if it doesn't contain sections for different nodes/namespaces
             return params["ros__parameters"]
 
         final_params = {}
 
-        for key, val in params.items():
-            if not isinstance(val, dict):
-                # Something weird, but we don't mind
-                final_params[key] = val
+        # Depth-first search through the params to find any "ros__parameters" keys
+        todo = [("", params)]
+        while todo:
+            path, cur = todo.pop(0)
 
-            elif key in ("**", "/**", "ros__parameters"):
-                # Unqualified parameters
-                val = val.get("ros__parameters", val)
-                final_params.update(val)
+            for key, val in cur.items():
+                if key in ("**", "/**", "ros__parameters"):
+                    val = val.get("ros__parameters", val)
+                    
+                    # Global parameters should always be included
+                    if not path or not matching_only or (qualifier and fnmatch(qualifier, path)):
+                        for param_name, param_val in val.items():
+                            param_path = f"{path}:{param_name}" if path else param_name
+                            final_params[param_path] = param_val
 
-            elif not matching_only or (qualifier and fnmatch(qualifier, key)):
-                # Qualify all parameters
-                val = val.get("ros__parameters", val)
-                final_params.update({f"{key}:{k}": v for k, v in val.items()})
+                elif isinstance(val, dict):
+                    branch_path = f"{path}/{key}" if path else key
+                    todo.append((branch_path, val))
+
+                else:
+                    # Some value that's not a dict and not a ros__parameters, just add it
+                    leaf_path = f"{path}/{key}" if path else key
+                    if not matching_only or (qualifier and fnmatch(qualifier, leaf_path)):
+                        final_params[leaf_path] = val
 
         return final_params
 
