@@ -831,7 +831,7 @@ Takeoff in 3... 2... 1...
             path, cur = todo.pop(0)
 
             for key, val in cur.items():
-                if key in ("**", "/**", "ros__parameters"):
+                if key in ("*", "**", "/**", "ros__parameters"):
                     val = val.get("ros__parameters", val)
                     
                     # Global parameters should always be included
