@@ -419,3 +419,131 @@ def spawn_controller(
     # would just introduce another dependency with little benefit.
     spawner = bl.find("controller_manager", "controller_manager/spawner")
     bl.exec(["python3", spawner] + process_args)
+
+
+def record_topics(
+    topics: list[str] = None,
+    *,
+    bagfile: str = None,
+    camera_topic: str = "image_rect",
+    include_image_topics: bool = True,
+    include_compressed: bool = False,
+    max_bag_duration: int = 0,
+    max_bag_size: int = 0,
+    format: str = "mcap",
+):
+    """Record a rosbag. 
+    
+    Will record the specified topics, or automatically select topics based on currently available topics and arguments.
+
+    Parameters
+    ----------
+    bagfile : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default.
+    camera_image_topic : str, optional
+        If specified, only record camera topics if they contain this string. Assumes that the word "camera" appears in the topic path. If specified it is independent from `include_image_topics`. Ignored if topics are specified.
+    include_image_topics : bool, optional
+        Whether to include non-camera image topics. Ignored if topics are specified.
+    include_compressed : bool, optional
+        Whether to include compressed image topics. Ignored if topics are specified.
+    max_bag_duration : int, optional
+        Start recording a new bagfile after recording for X seconds.
+    max_bag_size : int, optional
+        Start recording a new bagfile after recording X MB.
+    format : str, optional
+        Rosbag format, should be mcap or sqlite3.
+    """
+    bl = BetterLaunch()
+
+    cmd = [
+        "ros2",
+        "bag",
+        "record",
+        "--storage",
+        format,
+        "--max-bag-duration",
+        max_bag_duration,
+        "--max-bag-size",
+        max_bag_size * 1024 * 1024,
+    ]
+
+    if bagfile:
+        cmd.extend(["-o", bagfile])
+
+    if topics:
+        cmd.extend(topics)
+    else:
+        topics: dict = bl.shared_node.get_topic_names_and_types()
+        for topic, types in topics.items():
+            if "sensor_msgs/msg/Image" in types:
+                if "camera" in topic:
+                    if camera_topic and camera_topic not in topic:
+                        continue
+
+                elif not include_image_topics:
+                    # Not the camera topic we want and we don't want other image topics either
+                    continue
+
+                if "/compressed/" in topic and not include_compressed:
+                    continue
+
+            cmd.append(topic)
+
+    bl.exec(cmd)
+
+
+def record_topics_from_file(
+    topic_file: str,
+    *,
+    bagfile: str = None,
+    max_bag_duration: int = 0,
+    max_bag_size: int = 0,
+    format: str = "mcap",
+):
+    """Record a rosbag. 
+    
+    Reads topics to record from a text-file. Empty lines and lines starting with "#" will be ignored.
+
+    Parameters
+    ----------
+    bagfile : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default.
+    topic_file : str, optional
+        Text file with topics to record. Lines starting with "#" will be ignored.
+    max_bag_duration : int, optional
+        Start recording a new bagfile after recording for X seconds.
+    max_bag_size : int, optional
+        Start recording a new bagfile after recording X MB.
+    format : str, optional
+        Rosbag format, should be mcap or sqlite3.
+    """
+    bl = BetterLaunch()
+
+    cmd = [
+        "ros2",
+        "bag",
+        "record",
+        "--storage",
+        format,
+        "--max-bag-duration",
+        max_bag_duration,
+        "--max-bag-size",
+        max_bag_size * 1024 * 1024,
+    ]
+
+    if bagfile:
+        cmd.extend(["-o", bagfile])
+
+    with open(topic_file) as f:
+        lines = f.readlines()
+    
+    topics = []
+    for line in lines:
+        line = line.trim()
+        if not line or line.startswith("#"):
+            continue
+
+        topics.append(line)
+
+    bl.logger.critical(f"{len(topics)} topics will be recorded")
+    bl.exec(cmd)
