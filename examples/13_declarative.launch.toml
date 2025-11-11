@@ -77,11 +77,13 @@ pkg = "better_launch"
 [a_simple_cube]
 func = "find"
 package = "${pkg}"
-file = "cube.sd"
+filename = "cube.sdf"
 
 # Blocks are executed in sequence, so we can now use the result of the previous one.
 [print_me_baby]
-# Only run if a_simple_cube was found
-if = "${a_simple_cube}"
+# Only run if a_simple_cube was found. BL.find will either throw (which will stop 
+# execution of this launch file), or return a non-empty string, which in python will 
+# evaluate to True.
+#if = "${a_simple_cube}"
 func = "exec"
-exec = ["echo", "A simple cube can be found at ${a_simple_cube}"]
+cmd = ["echo", "A simple cube can be found at ${a_simple_cube}"]

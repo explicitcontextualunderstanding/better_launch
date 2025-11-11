@@ -272,7 +272,7 @@ def apply_substitutions(
                 if sub_key in context:
                     return str(context[sub_key])
                 else:
-                    raise SubstitutionError(f"Unknown substitution key: {sub_key}")
+                    raise SubstitutionError(f"Unknown substitution key: {sub_key} (substitutions: {list(substitutions.keys())}, context: {list(context.keys())})")
             else:
                 return " ".join(str(e) for e in evaluated)
         else:

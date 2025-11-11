@@ -12,7 +12,7 @@ from .toml_parser import load as load_toml
 from .substitutions import apply_substitutions
 
 
-toml_format_version = 1
+current_toml_format_version = 1
 
 
 def _execute_toml(
@@ -28,13 +28,23 @@ def _execute_toml(
     valid_funcs = set(f for f in BetterLaunch.__dict__ if not f.startswith("_"))
     results = dict(bl.launch_args)
 
+    def substitute_all(value: Any):
+        if isinstance(value, dict):
+            for key, val in value.items():
+                value[key] = substitute_all(val)
+        elif isinstance(value, list):
+            for i, item in enumerate(value):
+                value[i] = substitute_all(item)
+        elif isinstance(value, str):
+            return apply_substitutions(value, None, results, eval_type=eval_mode)
+
+        return value
+
     def exec_request(key: str, req: dict) -> Any:
         if "func" not in req:
             return
 
-        for attr, val in req.items():
-            if isinstance(val, str):
-                req[attr] = apply_substitutions(val, None, results, eval_type=eval_mode)
+        substitute_all(req)
 
         if not req.pop("if", True):
             return
@@ -77,6 +87,15 @@ def _execute_toml(
                 for subkey, child in children.items():
                     exec_request(subkey, child)
 
+    # Sanitize the launch file
+    toml.pop("__comment__", None)
+    for key, val in toml.items():
+        if isinstance(val, dict):
+            for key in list(val.keys()):
+                if key.startswith("__comment_"):
+                    del val[key]
+
+    # Execute the call tables
     for key, val in toml.items():
         if isinstance(val, dict):
             exec_request(key, val)
@@ -118,7 +137,18 @@ def _get_toml_launch_args(toml: dict) -> list[LaunchArg]:
     return args
 
 
-def launch_toml(path: str) -> None:
+def launch_toml(
+    path: str,
+    eval_mode: Literal["full", "literal", "none"] = None,
+    ui: bool = None,
+    join: bool = None,
+    screen_log_format: str = None,
+    file_log_format: str = None,
+    colormode: Colormode = None,
+    manage_foreign_nodes: bool = None,
+    keep_alive: bool = None,
+    allow_kwargs: bool = None,
+) -> None:
     """Execute a TOML better_launch launchfile.
 
     In better_launch TOML launch files, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public :py:class:`BetterLaunch` member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table's name.
@@ -190,19 +220,43 @@ def launch_toml(path: str) -> None:
     launch_args = _get_toml_launch_args(toml)
     docstring = toml.get("__comment__")
 
-    toml_format = int(toml.get("bl_toml_format", toml_format_version))
-    if toml_format != toml_format_version:
+    toml_format = int(toml.get("bl_toml_format", current_toml_format_version))
+    if toml_format != current_toml_format_version:
         print(f"Warning: TOML launch file has unexpected format version {toml_format}")
 
-    eval_mode = toml.get("bl_eval_mode", "full")
-    ui = toml.get("bl_ui", "false") in ("true", "enable", "1")
-    join = toml.get("bl_join", True)
-    colormode = Colormode[toml.get("bl_colormode", Colormode.DEFAULT.name)]
-    screen_log_format = toml.get("bl_screen_log_format", None)
-    file_log_format = toml.get("bl_file_log_format", None)
-    manage_foreign_nodes = toml.get("bl_manage_foreign_nodes", False)
-    keep_alive = toml.get("bl_keep_alive", False)
-    allow_kwargs = toml.get("bl_allow_kwargs", True)
+    if toml_format == current_toml_format_version:
+        pass
+    #elif toml_format == some_previous_version: ...
+
+    # TODO establish and verify argument precedence:
+    # CLI > env > launchfile > default
+
+    if eval_mode is None:
+        eval_mode = toml.get("bl_eval_mode", "full")
+
+    if ui is None:
+        ui = toml.get("bl_ui", "false") in ("true", "enable", "1")
+
+    if join is None:
+        join = toml.get("bl_join", True)
+
+    if colormode is None:
+        colormode = Colormode[toml.get("bl_colormode", Colormode.DEFAULT.name)]
+
+    if screen_log_format is None:
+        screen_log_format = toml.get("bl_screen_log_format", None)
+
+    if file_log_format is None:
+        file_log_format = toml.get("bl_file_log_format", None)
+
+    if manage_foreign_nodes is None:
+        manage_foreign_nodes = toml.get("bl_manage_foreign_nodes", False)
+
+    if keep_alive is None:
+        keep_alive = toml.get("bl_keep_alive", False)
+
+    if allow_kwargs is None:
+        allow_kwargs = toml.get("bl_allow_kwargs", True)
 
     def launch_func(*args, **kwargs):
         toml.update(kwargs)

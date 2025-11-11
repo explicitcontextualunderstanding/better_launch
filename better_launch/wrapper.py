@@ -278,10 +278,10 @@ def _exec_launch_func(
             # the caveat that these extra args need to be defined as `-[-]<key> val` tuples.
             assert (
                 len(ctx.args) % 2 == 0
-            ), "extra arguments need to be '--<key> <value>' tuples"
+            ), f"extra arguments need to be '--<key> <value>' tuples ({ctx.args})"
 
-            for (i,) in range(0, len(ctx.args), 2):
-                (key,) = ctx.args[i]
+            for i in range(0, len(ctx.args), 2):
+                key = ctx.args[i]
                 if not key.startswith("-"):
                     raise ValueError("Extra argument keys must start with a dash")
 

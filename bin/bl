@@ -197,19 +197,34 @@ class BetterLaunchToml(LaunchFile):
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Delegating to better_launch: {self.package}/{self.launchfile}, args={kwargs}",
+            f">> Calling launch_toml: {self.package}/{self.launchfile}, args={kwargs}",
             flush=True,
         )
 
-        # BUG what are we running?
-        # First argument becomes argv[0], so should be the program name
-        args = ["python3", self.filepath]
+        # Since the toml files are not executable, we need something else to run them. We 
+        # could create another script with a main function, but I don't think there's much
+        # of a point to this. Since it's the same process we also don't need to pass the 
+        # arguments, as click will gobble them up on its own.
+        from better_launch.declarative.declarative import launch_toml
+
+        # FIXME when launched without this click will also see the package argument
+        # TODO this feels very hacky :<
+        args = [sys.argv[0], "--launchfile", self.filepath]
         for key, arg in kwargs.items():
             if arg is not None:
                 args.extend([f"--{key}", arg])
+        sys.argv = args
+        launch_toml(self.filepath)
 
-        # This does NOT return and will replace our executable with the new executable in the same process
-        os.execvp("python3", [str(a) for a in args])
+        # # BUG what are we running?
+        # # First argument becomes argv[0], so should be the program name
+        # args = ["python3", self.filepath]
+        # for key, arg in kwargs.items():
+        #     if arg is not None:
+        #         args.extend([f"--{key}", arg])
+
+        # # This does NOT return and will replace our executable with the new executable in the same process
+        # os.execvp("python3", [str(a) for a in args])
 
 
 class Ros2LaunchFile(LaunchFile):
