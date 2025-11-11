@@ -129,6 +129,7 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
         root_namespace: str = "/",
         *,
         short_unique_names: bool = False,
+        start_launch_services: bool = True,
     ):
         """Note that BetterLaunch is a singleton: only the first invocation to `__init__` will succeed. All subsequent calls will return the previous instance. If you need access to the BetterLaunch instance outside your launch function, consider using one of the following classmethods instead:
         * :py:meth:`BetterLaunch.instance <_BetterLaunchMeta.instance>`
@@ -144,6 +145,8 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
             The namespace of the root group.
         short_unique_names : bool, optional
             If True, use short random hex strings for unique names instead of random words.
+        start_launch_services : bool, optional
+            Start additional services for managing running nodes.
         """
         if not name:
             if not BetterLaunch._launchfile:
@@ -179,7 +182,14 @@ class BetterLaunch(metaclass=_BetterLaunchMeta):
 
         self.short_unique_names = short_unique_names
 
+        self._status_service = None
+        self._kill_service = None
+        self._restart_service = None
+
         self.hello()
+
+        if start_launch_services:
+            self.start_launch_services()
 
     def hello(self) -> None:
         """Prints our welcome message and some useful information.
@@ -217,6 +227,123 @@ Takeoff in 3... 2... 1...
         # We don't want to log this
         print(msg)
         self.logger.critical(f"Log files at {roslog.launch_config.log_dir}")
+
+    # FIXME Due to https://github.com/ros2/rosidl_python/issues/141 this cannot proceed right now
+    # as I don't want to make a separate package for message types. However, this pull request
+    # seems to be almost ready: https://github.com/ament/ament_cmake/pull/587
+    def start_launch_services(self) -> None:
+        """Start additional ROS services that can be used to interact with the launch file.
+
+        The services will become available in the `/better_launch/<launchfile>` namespace. `<launchfile>` is the name of the launchfile without the `.launch.X` extension, followed by an underscore and the process PID. 
+
+        For example, running a launchfile called `mylaunchfile.launch.py`, the services would live in a namespace like `/better_launch/mylaunchfile_1234/`.
+
+        Calling this function later or multiple times is fine.
+        """
+        from better_launch.srv import GetLaunchfileStatus, KillNode, RestartNode
+
+        def launchfile_status(req: GetLaunchfileStatus.Request, res: GetLaunchfileStatus.Response):
+            """Return the status of every node
+            """
+            nodes = self.get_bl_nodes(
+                include_components=False, include_launch_service=True
+            )
+
+            for n in nodes:
+                if n.is_lifecycle_node():
+                    res.nodes.append(n.fullname)
+                    res.states.append(n.lifecycle.current_stage.name)
+                elif isinstance(n, Composer):
+                    res.nodes.append(n.fullname)
+                    res.states.append("RUNNING" if n.is_running else "TERMINATED")
+
+                    for comp in n.managed_components:
+                        res.nodes.append(n.fullname)
+                        res.states.append("RUNNING" if comp.is_running else "TERMINATED")
+                else:
+                    res.nodes.append(n.fullname)
+                    res.states.append("RUNNING" if n.is_running else "TERMINATED")
+
+            return res
+
+        def kill_node(req: KillNode.Request, res: KillNode.Response):
+            """Kill the specified node.
+            """
+            matches = list(self.query_nodes(req.node))
+
+            if not matches:
+                res.success = False
+                res.message = f"No node matching {req.node}"
+            elif len(matches) > 1:
+                res.success = False
+                res.message = f"Found multiple nodes matching {req.node}"
+            else:
+                try:
+                    matches[0].shutdown("Service request: kill")
+                    res.success = True
+                except Exception as e:
+                    res.success = False
+                    res.message = str(e)
+
+            return res
+
+        def restart_node(req: RestartNode.Request, res: RestartNode.Response):
+            """Restart the specified node.
+            """
+            matches = list(self.query_nodes(req.node))
+
+            if not matches:
+                res.success = False
+                res.message = f"No node matching {req.node}"
+            elif len(matches) > 1:
+                res.success = False
+                res.message = f"Found multiple nodes matching {req.node}"
+            else:
+                node = matches[0]
+                try:
+                    if node.is_running:
+                        node.shutdown("Service request: restart", timeout=5.0)
+
+                    if not node.is_running:
+                        node.start()
+                        res.success = True
+                    else:
+                        res.success = False
+                        res.message = "Node did not terminate in time"
+                except Exception as e:
+                    res.success = False
+                    res.message = str(e)
+
+            return res
+
+        # TODO bl start file
+
+        launchfile_name = self.launchfile.rsplit(os.pathsep, maxsplit=1)[-1]
+        try:
+            idx = launchfile_name.index(".launch.")
+            launchfile_name = launchfile_name[:idx]
+        except ValueError:
+            pass
+
+        namespace = f"/better_launch/{launchfile_name}_{os.getpid()}"
+
+        self._status_service = self.service(
+            namespace + "/status",
+            GetLaunchfileStatus,
+            launchfile_status,
+        )
+
+        self._kill_service = self.service(
+            namespace + "/kill_node",
+            KillNode,
+            kill_node,
+        )
+
+        self._restart_service = self.service(
+            namespace + "/restart_node",
+            RestartNode,
+            restart_node,
+        )
 
     def spin(self, exit_with_last_node: bool = True) -> None:
         """Join the BetterLaunch thread until it terminates. You do **not** need to call this if you're using the :py:meth:`launch_this` wrapper or the TUI.

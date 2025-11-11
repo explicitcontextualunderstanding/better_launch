@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(better_launch)
 
 find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 # Run via `colcon test --packages-select better_launch`. 
 # Examine results with `colcon test-result --all`
@@ -21,6 +22,14 @@ if(BUILD_TESTING)
   endforeach()
 endif()
 
+# Our message and service files
+rosidl_generate_interfaces(${PROJECT_NAME}_msgs
+  "srv/KillNode.srv"
+  "srv/RestartNode.srv"
+)
+ament_export_dependencies(rosidl_default_runtime)
+
+# Install the examples so they can be run without absolute paths
 install(DIRECTORY examples
         DESTINATION share/${PROJECT_NAME})
 

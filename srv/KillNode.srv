@@ -1,0 +1,6 @@
+# Passed as a query to BetterLaunch.query_nodes. The request will only succeed 
+# if the query returns exactly one node.
+string node
+---
+bool success
+string message
