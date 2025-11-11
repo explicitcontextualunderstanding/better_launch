@@ -15,7 +15,10 @@ from .substitutions import apply_substitutions
 toml_format_version = 1
 
 
-def _execute_toml(toml: dict[str, Any], eval_mode: Literal["full", "literal", "none"]) -> dict[str, Any]:
+def _execute_toml(
+    toml: dict[str, Any],
+    eval_mode: Literal["full", "literal", "none"],
+) -> dict[str, Any]:
     """Execute each call table and apply substitutions."""
     if BetterLaunch.instance():
         raise RuntimeError("BetterLaunch has already been initialized")
@@ -115,7 +118,7 @@ def _get_toml_launch_args(toml: dict) -> list[LaunchArg]:
     return args
 
 
-def launch_toml(path: str,) -> None:
+def launch_toml(path: str) -> None:
     """Execute a TOML better_launch launchfile.
 
     In better_launch TOML launch files, most tables will be `call tables`. A call table is a dict that has a `func` key referring to one of the public :py:class:`BetterLaunch` member functions. All other attributes will be treated as keyword arguments to that function. Call tables are executed in the order they appear in the launch file, and the result of calling their associated function will be stored under the call table's name.
