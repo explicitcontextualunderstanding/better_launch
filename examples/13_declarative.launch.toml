@@ -88,8 +88,10 @@
 # arguments with a primitive type (e.g. `my_launch_arg = bool`) - in this case it will
 # not have a default and must be provided by the user.
 
-# Comments above any block become help text when run with --help.
+# This launch arg has no default and must be specified. 
 enable = bool
+
+# Comments above any block become help text when run with --help.
 pkg = "better_launch"
 
 # This block will call BetterLaunch.find with the provided arguments. The result will 
