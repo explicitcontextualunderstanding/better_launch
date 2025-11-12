@@ -121,13 +121,13 @@ class BetterLaunchPython(LaunchFile):
         if not filepath.lower().endswith(".launch.py"):
             raise ValueError("Not a python file")
 
-        from better_launch.wrapper import _get_func_launch_args
+        from better_launch.wrapper import _get_declared_args
 
         _, signature, func_doc = get_launchfunc_signature_from_file(filepath)
         if not signature:
             raise ValueError("Not a better_launch launch file")
 
-        launch_args = _get_func_launch_args(signature, func_doc)
+        launch_args = _get_declared_args(signature, func_doc)
 
         overrides = Overrides()
         options = get_click_options(launch_args)
@@ -143,7 +143,7 @@ class BetterLaunchPython(LaunchFile):
         return options, doc
 
     def __init__(self, filepath: str):
-        params, doc = BetterLaunchPython._get_launch_params_and_doc_bl(filepath)
+        params, doc = BetterLaunchPython._get_launch_params_and_doc_bl_python(filepath)
         super().__init__(filepath, params, doc)
 
     def run(self, ctx: click.Context, **kwargs) -> None:
