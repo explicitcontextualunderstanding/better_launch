@@ -46,10 +46,6 @@ from better_launch.elements import (
     find_process_for_node,
     find_foreign_nodes,
 )
-from better_launch.utils.substitutions import (
-    default_substitution_handlers,
-    substitute_tokens,
-)
 from better_launch.utils.introspection import (
     find_function_frame,
     find_calling_frame,
@@ -636,8 +632,6 @@ Takeoff in 3... 2... 1...
         package: str = None,
         filename: str = None,
         subdir: str = "**",
-        *,
-        substitutions: bool = True,
     ) -> str:
         """Resolve a path to a file or package.
 
@@ -659,8 +653,6 @@ Takeoff in 3... 2... 1...
             Name of a file to look for.
         subdir : str, optional
             A glob pattern to locate subdirectories and files. See the `pathlib pattern language <https://docs.python.org/3/library/pathlib.html#pathlib-pattern-language>`_ for details.
-        substitutions : bool, optional
-            If True, text substitution strings within the package and base path will be resolved (see :py:meth:`resolve_strin​g`).
 
         Returns
         -------
@@ -672,19 +664,11 @@ Takeoff in 3... 2... 1...
         ValueError
             If `package` contains path separators, or if a `filename` is provided but could not be found within base path.
         """
-        resolve = None
-        if substitutions:
-            resolve = self.resolve_string
-
-        if filename:
-            if resolve:
-                filename = resolve(filename)
-
-            if os.path.isabs(filename):
-                self.logger.info(
-                    f"find({package}, {filename}, {subdir}):1 -> {filename}"
-                )
-                return filename
+        if filename and os.path.isabs(filename):
+            self.logger.info(
+                f"find({package}, {filename}, {subdir}):1 -> {filename}"
+            )
+            return filename
 
         if not package:
             package, _ = get_package_for_path(os.path.dirname(self.launchfile))
@@ -697,9 +681,6 @@ Takeoff in 3... 2... 1...
             base_path = get_package_prefix(package)
         else:
             base_path = os.getcwd()
-
-        if resolve:
-            base_path = resolve(base_path)
 
         if not filename and subdir in (None, "", "**"):
             self.logger.info(f"find({package}, {filename}, {subdir}):2 -> {base_path}")
@@ -735,40 +716,6 @@ Takeoff in 3... 2... 1...
             f"Could not find file or directory (package={package}, filename={filename}, subdir={subdir}), searched path was {base_path}"
         )
 
-    def resolve_string(self, s: str) -> str:
-        """Replaces a variety of special strings in the provided string, usually a path.
-
-        This is similar to what ROS1 could do when resolving paths in XML launch files. Substitutions always have the form `$(<substitution-type> <substitution-args>)`. Substitutions can also be nested, so the following is possible:
-
-        ``$(eval $(arg x) * 5)``  ->  if x=2, this will be resolved to 10
-
-        Note that the underlying algorithm will likely fail if it encounters additional brackets within the string.
-
-        The following substitutions are supported:
-        * `$(find <filename> <package> <subdir>)`: return the result of :py:meth:`find`. Note that substitution arguments are always sequential (not kwargs).
-        * `$(arg <name> <default>)`: return the value of an argument passed to the launch function or `<default>` if it doesn't exist. Raises KeyError if no default is provided and no default was provided.
-        * `$(param <full-node-name> <param>)`: retrieves the value of the ROS parameter `<param>` from the `<full-node-name>` (i.e. namespace + node name). Raises KeyError if the node does not exist or ValueError if the node does not have the specified parameter.
-        * `$(env <key> <default>)`: return the value of the environment variable `<key>` or `<default>` if it doesn't exist. Raises KeyError if no default is provided and no default was provided.
-        * `$(eval <python-snippet>)`: returns the result from evaluating the provided `<python-snippet>`. Typical use cases include simple math and assembling strings. **Note** that this indeed uses python's :py:func:`eval`.
-
-        Parameters
-        ----------
-        s : str
-            The string to apply substitutions to.
-
-        Returns
-        -------
-        str
-            The string with all substitutions involved.
-        Raises
-        ------
-        KeyError, ValueError
-            Depending on the substitution that failed.
-        """
-        if not s:
-            return ""
-
-        return substitute_tokens(s, default_substitution_handlers("full"))
 
     def load_params(
         self,

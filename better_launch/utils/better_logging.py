@@ -3,6 +3,7 @@ import os
 import re
 import logging
 from datetime import datetime
+import enum
 
 import better_launch.ros.logging as roslog
 from .colors import get_contrast_color
@@ -16,7 +17,12 @@ ROSLOG_PATTERN_ROS = "%%{severity}%%{time}%%{message}"
 ROSLOG_PATTERN_BL = r"%%(?P<levelname>\w+)%%(?P<created>[\d.]+)%%(?P<msg>[\s\S]*)"
 
 
-Colormode = Literal["default", "severity", "source", "none", "rainbow"]
+class Colormode(enum.Enum):
+    DEFAULT = enum.auto()
+    SEVERITY = enum.auto()
+    SOURCE = enum.auto()
+    NONE = enum.auto()
+    RAINBOW = enum.auto()
 
 
 default_log_colormap = {
@@ -315,7 +321,7 @@ def init_logging(
     log_config: roslog.LaunchConfig,
     screen_log_format: str = None,
     file_log_format: str = None,
-    colormode: Colormode = "default",
+    colormode: Colormode = Colormode.DEFAULT,
 ) -> None:
     if not screen_log_format:
         screen_log_format = PrettyLogFormatter.default_screen_format
@@ -323,23 +329,23 @@ def init_logging(
     if not file_log_format:
         file_log_format = PrettyLogFormatter.default_file_format
 
-    if colormode == "default":
+    if colormode == Colormode.DEFAULT:
         src_color = default_source_color
         log_color = None
-    elif colormode == "severity":
+    elif colormode == Colormode.SEVERITY:
         src_color = ""
         log_color = None
-    elif colormode == "source":
+    elif colormode == Colormode.SOURCE:
         src_color = None
         log_color = ""
-    elif colormode == "none":
+    elif colormode == Colormode.NONE:
         src_color = ""
         log_color = ""
-    elif colormode == "rainbow":
+    elif colormode == Colormode.RAINBOW:
         src_color = None
         log_color = None
     else:
-        raise ValueError("Invalid colormode " + colormode)
+        raise ValueError(f"Invalid colormode {colormode}")
 
     # We'll handle formatting and color ourselves, just get the nodes to comply
     os.environ["RCUTILS_CONSOLE_OUTPUT_FORMAT"] = ROSLOG_PATTERN_ROS
