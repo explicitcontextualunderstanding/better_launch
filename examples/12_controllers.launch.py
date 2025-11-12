@@ -33,6 +33,12 @@ def parambolage():
         anonymous=False
     )
 
+    remaps = {}
+    if bl.ros_distro()[0].lower() < "j":
+        # In versions before Jazzy the controller_manager was subscribing to something weird like 
+        # /controller_manager/robot_description
+        remaps["~/robot_description"] = "/robot_description"
+
     # NOTE we could use convenience.spawn_controller_manager, but this launch file also serves to
     # show how to load parameters and some more technical nuances
     bl.node(
@@ -40,6 +46,7 @@ def parambolage():
         executable="ros2_control_node",
         name="controller_manager",
         params=params,
+        remaps=remaps,
         # Qualify the name and namespace remaps with the ORIGINAL name of the manager. The original
         # name is passed to the node's implementation on construction and usually hardcoded.
         # See https://github.com/ros-controls/ros2_control/blob/6cbb5f0ff69c1abcab97dde4f99ccc84d0b3f5bb/controller_manager/src/ros2_control_node.cpp#L58

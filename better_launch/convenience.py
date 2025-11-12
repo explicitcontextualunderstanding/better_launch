@@ -322,6 +322,10 @@ def spawn_controller_manager(
                 remaps = {}
             remaps["robot_description"] = robot_description
 
+    else:
+        if bl.ros_distro()[0].lower() < "j":
+            bl.logger.warning("Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!")
+
     return bl.node(
         package="controller_manager",
         executable="ros2_control_node",
