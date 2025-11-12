@@ -160,29 +160,26 @@ def launch_toml(
     .. code-block:: toml
         max_respawns = 3
 
-        [node-config]
-        func = "load_params"
-        package = "my-package"
-        configfile = "the-config.yml"
-
-        [mynode]
+        [my_awesome_node]
         func = "node"
         package = "my-package"
         executable = "my-node"
-        params = "$(node-config)"
-        max_respawns = "$(max_respawns)"
+        name = "my-node"
+        max_respawns = "${max_respawns}"
 
-    Executing this launchfile will first call :py:meth:`BetterLaunch.load_params` to locate a configuration file and store the result in the `node-config` key. Next, a node will be created by calling :py:meth:`BetterLaunch.node` with the call table's attributes. The `params` argument will be substituted to use the contents of the previously loaded config file. For convenience, since no name was specified the node will use the name of the table ("mynode").
+    This launch file declares a launch argument `max_respawns`. It then creates a new node and passes the launch argument to it using a substitution. The returned :py:class:`Node` instance is stored in the launch context under the `my_awesome_node` key, and could be referred to by later call tables.
 
-    Any entry that is not a call table will be treated as a launch argument. Just like the results of call tables, these arguments can be used in substitutions (you may remember similar patterns from ROS1). There are a few special variants:
-    - `$(<K>)` as above, this will resolve to a launch arg or call table result named <K>
-    - `$(param <N> <P>)` will retrieve a parameter <P> from the *full* nodename <N>
-    - `$(env <E> <D>)` will get the environment variable <E> (default to <D> if specified)
-    - `$(eval <X>)` will treat <X> as a python expression to evaluate
+    An example launchfile with more explanations can be found in the examples folder.
+
+    Substitutions in better_launch take heavy inspiration from those found in ROS1 and should be familiar to many. However, as the TOML launchfile format is much more powerful, only the following substitutions were deemed necessary for now:
+    - `${<K>}` this will resolve to a launch arg or call table result named <K>
+    - `${param <N> <P>}` will retrieve a parameter <P> from the *full* nodename <N>
+    - `${env <E> [D]}` will get the environment variable <E> (default to <D> if specified)
+    - `${eval <X>}` will treat <X> as a python expression to evaluate
 
     Substitutions can also be nested, in which case the innermost ones will be resolved first.
 
-    For those functions in :py:class:`BetterLaunch` which are used as context objects (e.g. :py:meth:`BetterLaunch.group`, :py:meth:`BetterLaunch.compose`) you may provide a `children` attribute, which must be a dict of dicts. It's possible to use TOML's sutables for this like so:
+    For those functions in :py:class:`BetterLaunch` which are used as context objects (e.g. :py:meth:`BetterLaunch.group`, :py:meth:`BetterLaunch.compose`) you may provide a `children` attribute, which must be a dict of dicts. It's possible to use TOML's subtables for this like so:
 
     .. code-block:: toml
 
@@ -194,7 +191,10 @@ def launch_toml(
         package = "composition"
         plugin = "composition::Talker"
 
-    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions).
+    In addition, any call table may contain an `if` and `unless` attribute to tie execution to a condition (which of course may contain substitutions). These will be evaluated according to 
+    python truthiness.
+    - if     -> execute only if condition is true
+    - unless -> execute only if condition is false
 
     Lastly, there are a couple of special keys:
     - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is :py:data:`toml_format_version`.
@@ -234,7 +234,7 @@ def launch_toml(
     # CLI > env > launchfile > default
 
     if eval_mode is None:
-        eval_mode = toml.get("bl_eval_mode", "full")
+        eval_mode = toml.get("bl_eval_mode", "literal")
 
     if ui is None:
         ui = toml.get("bl_ui", "false") in ("true", "enable", "1")

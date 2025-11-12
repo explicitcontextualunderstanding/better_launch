@@ -6,12 +6,13 @@
 # 
 # By the way, the first comment block becomes the launchfile's help text :)
 
+
 # ==============================================================================
 # Execute a TOML better_launch launchfile
 # ==============================================================================
 #
-# In better_launch TOML launch files, most tables are *call tables*.
-# A call table is a dictionary with a func key referring to one of the
+# In better_launch TOML launchfiles, most tables are *call tables*.
+# A call table is a dictionary with a "func" key referring to one of the
 # public BetterLaunch member functions.
 # All other attributes are treated as keyword arguments to that function.
 # Call tables execute in order of appearance, and their return values
@@ -19,11 +20,12 @@
 # 
 # ------------------------------------------------------------------------------
 
-# Launch arguments
+# Substitutions
 # ------------------------------------------------------------------------------
-# Any entry outside a call table is treated as a launch argument or global 
-# key. These arguments, as well as results of call tables, can be referenced
-# using substitutions (similar to ROS1's $(arg X)):
+# Substitutions in better_launch take heavy inspiration from those found 
+# in ROS1 and should be familiar to many. However, as the TOML launchfile 
+# format is much more powerful, only the following substitutions were 
+# deemed necessary for now:
 #
 #   $(<K>)            -> value of launch argument or call table <K>
 #   $(param <N> <P>)  -> parameter <P> from node <N>
@@ -36,8 +38,8 @@
 
 # Context objects
 # ------------------------------------------------------------------------------
-# Functions like BetterLaunch.group or BetterLaunch.compose
-# accept a children attribute (a dict of dicts). Example:
+# Functions like BetterLaunch.group or BetterLaunch.compose accept a 
+# children attribute (a dict of dicts). Example:
 #
 #   [my_composer]
 #   func = "compose"
@@ -47,7 +49,9 @@
 #   package = "composition"
 #   plugin = "composition::Talker"
 #
-# Call tables may also include conditional attributes:
+# In addition, any call table may contain an `if` and `unless` attribute 
+# to tie execution to a condition (which of course may contain substitutions). 
+# These will be evaluated according to python truthiness.
 #   if     -> execute only if condition is true
 #   unless -> execute only if condition is false
 #
@@ -56,11 +60,11 @@
 # Special keys
 # ------------------------------------------------------------------------------
 #   bl_toml_format:          TOML parser version your launch file targets.
-#                            Current version: :py:data:toml_format_version.
+#                            Current version: 1.
 #
 #   bl_eval_mode:            Controls ${eval ...} substitutions:
 #                              - "full":    regular eval
-#                              - "literal": only literals (ast.literal_eval)
+#                              - "literal": ast.literal_eval (default)
 #                              - "none":    disable evaluation
 #
 #   bl_ui:                   Default for starting the UI
@@ -74,9 +78,10 @@
 #
 # ------------------------------------------------------------------------------
 
+
+
 # This is where the actual launch file begins
 # ------------------------------------------------------------------------------
-
 # Any keys that are not part of a table are considered launch arguments. If a value is 
 # provided their type is derived from that value. It is also possible to define launch
 # arguments with a primitive type (e.g. `my_launch_arg = bool`) - in this case it will
