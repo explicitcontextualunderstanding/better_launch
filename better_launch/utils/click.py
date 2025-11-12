@@ -8,9 +8,11 @@ from better_launch.utils.better_logging import Colormode
 
 @dataclass
 class DeclaredArg:
+    _undefined = object()
+
     name: str
     ptype: Type
-    default: Any = None
+    default: Any = _undefined
     description: str = None
 
 
@@ -45,11 +47,19 @@ class Overrides:
 def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option]:
     options = []
     for arg in declared_args:
+        if arg.default != DeclaredArg._undefined:
+            default = arg.default
+            required = False
+        else:
+            default = None
+            required = True
+
         options.append(
             click.Option(
                 [f"--{arg.name}"],
                 type=arg.ptype,
-                default=arg.default,
+                default=default,
+                required=required,
                 show_default=True,
                 help=arg.description,
             )

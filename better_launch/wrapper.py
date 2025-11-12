@@ -139,18 +139,18 @@ def _get_declared_args(signature: inspect.Signature, docstring: str = None) -> l
     # Create CLI options for click
     for param in signature.parameters.values():
         ptype = None
-        default = None
+        default = DeclaredArg._undefined
 
         if param.default is not param.empty:
             default = param.default
 
-        if default is not None:
-            ptype = type(default)
-        elif param.annotation is not param.empty:
-            ptype = param.annotation
-            if isinstance(ptype, str):
-                # If it's a primitive type we can parse it, otherwise ignore it
-                ptype = getattr(__builtins__, ptype, None)
+            if default is not None:
+                ptype = type(default)
+            elif param.annotation is not param.empty:
+                ptype = param.annotation
+                if isinstance(ptype, str):
+                    # If it's a primitive type we can parse it, otherwise ignore it
+                    ptype = getattr(__builtins__, ptype, None)
 
         # type, default, docstring
         declared_args.append(
@@ -203,7 +203,7 @@ def _exec_launch_func(
         include_args: dict = glob[_bl_include_args]
         bl.logger.info(f"Including launch file: {includefile} (args={include_args})")
 
-        call_kw = {a.name: a.default for a in declared_args}
+        call_kw = {a.name: a.default for a in declared_args if a.default != DeclaredArg._undefined}
 
         for key, val in include_args.items():
             if allow_kwargs or key in call_kw:
@@ -373,7 +373,7 @@ def _expose_ros2_launch_function(launch_func: Callable, declared_args: list[Decl
         # Declare launch arguments from the function signature
         for arg in declared_args:
             default = None
-            if arg.default is not None:
+            if arg.default not in (None, DeclaredArg._undefined):
                 default = str(arg.default)
 
             ld.add_action(DeclareLaunchArgument(arg.name, default_value=default))

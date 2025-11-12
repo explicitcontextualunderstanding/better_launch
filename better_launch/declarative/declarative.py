@@ -118,7 +118,7 @@ def _get_toml_args(toml: dict) -> list[DeclaredArg]:
         if isinstance(val, type):
             # no default value
             ptype = val
-            default = None
+            default = DeclaredArg._undefined
         else:
             ptype = type(val)
             default = val

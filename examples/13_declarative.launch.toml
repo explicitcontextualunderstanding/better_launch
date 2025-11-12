@@ -89,6 +89,7 @@
 # not have a default and must be provided by the user.
 
 # Comments above any block become help text when run with --help.
+enable = bool
 pkg = "better_launch"
 
 # This block will call BetterLaunch.find with the provided arguments. The result will 
@@ -103,4 +104,4 @@ filename = "cube.sdf"
 # Blocks are executed in sequence, so we can now use the result of the previous one.
 [print_me_baby]
 func = "exec"
-cmd = ["echo", "A simple cube can be found at ${a_simple_cube}"]
+cmd = ["echo", "SUCCESS! A simple cube can be found at ${a_simple_cube}"]
