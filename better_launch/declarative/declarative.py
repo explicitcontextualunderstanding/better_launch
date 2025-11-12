@@ -175,14 +175,13 @@ def launch_toml(
     - `${<K>}` this will resolve to a launch arg or call table result named <K>
     - `${param <N> <P>}` will retrieve a parameter <P> from the *full* nodename <N>
     - `${env <E> [D]}` will get the environment variable <E> (default to <D> if specified)
-    - `${eval <X>}` will treat <X> as a python expression to evaluate
+    - `${eval <X>}` will treat <X> as a python expression to evaluate (see `eval_mode` below)
 
     Substitutions can also be nested, in which case the innermost ones will be resolved first.
 
     For those functions in :py:class:`BetterLaunch` which are used as context objects (e.g. :py:meth:`BetterLaunch.group`, :py:meth:`BetterLaunch.compose`) you may provide a `children` attribute, which must be a dict of dicts. It's possible to use TOML's subtables for this like so:
 
     .. code-block:: toml
-
         [my_composer]
         func = "compose"
 
@@ -196,9 +195,9 @@ def launch_toml(
     - if     -> execute only if condition is true
     - unless -> execute only if condition is false
 
-    Lastly, there are a couple of special keys:
+    Lastly, there are a couple of special keys that may be declared in the TOML:
     - `bl_toml_format`: the better_launch TOML parser version your launch file was written for. Set this if the format has changed and you don't want to update your launch file. The current version is :py:data:`toml_format_version`.
-    - `bl_eval_mode`: if and how `$(eval ...)` substitutions should be supported. `full`: regular eval. `literal`: only literals (uses :py:meth:`ast.literal_eval`). `none`: don't evaluate and return the substitution content verbatim.
+    - `bl_eval_mode`: if and how `$(eval ...)` substitutions should be supported.
     - `bl_ui`: default value for starting the UI
     - `bl_join`: whether to join the processes better_launch starts
     - `bl_colormode`: default colormode
@@ -210,13 +209,34 @@ def launch_toml(
 
     Parameters
     ----------
-    content : dict[str, Any]
-        Contents of a TOML launch file.
-
-    Returns
-    -------
-    dict[str, Any]
-        The results of the executed calls.
+    path : str
+        Path to the TOML launchfile to execute.
+    launch_args : dict[str, str], optional
+        values for launch arguments declared by the launchfile.
+    eval_mode : Literal[&quot;full&quot;, &quot;literal&quot;, &quot;none&quot;], optional
+        How to treat `eval` substitutions.
+    ui : bool, optional
+        Whether to start the better_launch TUI. Superseded by the `BL_UI_OVERRIDE` environment variable and the `--bl_ui_override` argument.
+    join : bool, optional
+        If True, join the better_launch process. Has no effect when ui == True.
+    screen_log_format : str, optional
+        Customize how log output will be formatted when printing it to the screen. Will be overridden by the `BL_SCREEN_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+    file_log_format : str, optional
+        Customize how log output will be formatted when writing it to a file. Will be overridden by the `BL_FILE_LOG_FORMAT_OVERRIDE` environment variable. See :py:class:`PrettyLogFormatter` for details.
+    colormode : Colormode, optional
+        Decides what colors will be used for:
+        * default: one color per log severity level and a single color for all message sources
+        * severity: one color per log severity, don't colorize message sources
+        * source: one color per message source, don't colorize log severity
+        * none: don't colorize anything
+        * rainbow: colorize log severity and give each message source its own color
+        Superseded by the `BL_COLORMODE_OVERRIDE` environment variable and the `--bl_colormode_override` argument.
+    manage_foreign_nodes : bool, optional
+        If True, the TUI will also include node processes not started by this process. Has no effect if the TUI is not started.
+    keep_alive : bool, optional
+        If True, keep the process alive even when all nodes have stopped.
+    allow_kwargs : bool, optional
+        Whether additional launch arguments are allowed.
     """
     toml: dict = load_toml(path)
     declared_args = _get_toml_args(toml)
@@ -260,8 +280,9 @@ def launch_toml(
     if allow_kwargs is None:
         allow_kwargs = toml.get("bl_allow_kwargs", True)
 
-    argv = []
+    argv = None
     if launch_args:
+        argv = []
         for key, arg in launch_args.items():
             if arg is not None:
                 argv.extend([f"--{key}", arg])
@@ -281,6 +302,7 @@ def launch_toml(
         file_log_format=file_log_format,
         manage_foreign_nodes=manage_foreign_nodes,
         keep_alive=keep_alive,
+        # Not useful for the launchfile, but some node may consume the extra args
         allow_kwargs=allow_kwargs,
         _argv=argv,
     )

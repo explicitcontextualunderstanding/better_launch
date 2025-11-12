@@ -2,7 +2,8 @@
 # 
 # The discussions over at ros discourse revealed that there was a need for 
 # launchfiles that are not code-based but can be parsed offline. This is 
-# better_launch's answer, based on the TOML format.
+# better_launch's answer, based on the TOML format. For the curious of heart, 
+# the related functions can be found in better_launch/declarative. 
 # 
 # By the way, the first comment block becomes the launchfile's help text :)
 
