@@ -469,8 +469,15 @@ class LaunchfileSelectionCLI(click.MultiCommand):
                     if os.access(path, os.X_OK):
                         executables.append(path)
                     elif include_launchfiles and (
-                        filename.endswith((".py", ".xml", ".yaml", ".yml", ".toml"))
-                        and ".launch." in filename
+                        filename.endswith(
+                            (
+                                ".launch.py",
+                                ".launch.xml",
+                                ".launch.yaml",
+                                ".launch.yml",
+                                ".launch.toml",
+                            )
+                        )
                     ):
                         executables.append(path)
 
