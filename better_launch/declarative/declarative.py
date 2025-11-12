@@ -6,7 +6,7 @@ import logging
 from better_launch import BetterLaunch
 from better_launch.wrapper import _exec_launch_func
 from better_launch.utils.better_logging import Colormode
-from better_launch.utils.click import LaunchArg
+from better_launch.utils.click import DeclaredArg
 
 from .toml_parser import load as load_toml
 from .substitutions import apply_substitutions
@@ -105,7 +105,7 @@ def _execute_toml(
     return results
 
 
-def _get_toml_launch_args(toml: dict) -> list[LaunchArg]:
+def _get_toml_args(toml: dict) -> list[DeclaredArg]:
     args = []
 
     for key, val in toml.items():
@@ -126,7 +126,7 @@ def _get_toml_launch_args(toml: dict) -> list[LaunchArg]:
         description = toml.get(f"__comment_{key}__")
 
         args.append(
-            LaunchArg(
+            DeclaredArg(
                 key,
                 ptype,
                 default,
@@ -139,7 +139,9 @@ def _get_toml_launch_args(toml: dict) -> list[LaunchArg]:
 
 def launch_toml(
     path: str,
+    launch_args: dict[str, str] = None,
     eval_mode: Literal["full", "literal", "none"] = None,
+    *,
     ui: bool = None,
     join: bool = None,
     screen_log_format: str = None,
@@ -217,7 +219,7 @@ def launch_toml(
         The results of the executed calls.
     """
     toml: dict = load_toml(path)
-    launch_args = _get_toml_launch_args(toml)
+    declared_args = _get_toml_args(toml)
     docstring = toml.get("__comment__")
 
     toml_format = int(toml.get("bl_toml_format", current_toml_format_version))
@@ -258,13 +260,19 @@ def launch_toml(
     if allow_kwargs is None:
         allow_kwargs = toml.get("bl_allow_kwargs", True)
 
+    argv = []
+    if launch_args:
+        for key, arg in launch_args.items():
+            if arg is not None:
+                argv.extend([f"--{key}", arg])
+
     def launch_func(*args, **kwargs):
         toml.update(kwargs)
         _execute_toml(toml, eval_mode=eval_mode)
 
     _exec_launch_func(
         launch_func,
-        launch_args,
+        declared_args,
         docstring,
         ui=ui,
         join=join,
@@ -274,4 +282,5 @@ def launch_toml(
         manage_foreign_nodes=manage_foreign_nodes,
         keep_alive=keep_alive,
         allow_kwargs=allow_kwargs,
+        _argv=argv,
     )

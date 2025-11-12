@@ -7,7 +7,7 @@ from better_launch.utils.better_logging import Colormode
 
 
 @dataclass
-class LaunchArg:
+class DeclaredArg:
     name: str
     ptype: Type
     default: Any = None
@@ -42,9 +42,9 @@ class Overrides:
         )
 
 
-def get_click_options(launch_args: Iterable[LaunchArg]) -> list[click.Option]:
+def get_click_options(declared_args: Iterable[DeclaredArg]) -> list[click.Option]:
     options = []
-    for arg in launch_args:
+    for arg in declared_args:
         options.append(
             click.Option(
                 [f"--{arg.name}"],

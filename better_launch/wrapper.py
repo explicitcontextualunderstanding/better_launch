@@ -19,7 +19,7 @@ from better_launch.utils.better_logging import (
 )
 from better_launch.utils.introspection import find_calling_frame
 from better_launch.utils.click import (
-    LaunchArg,
+    DeclaredArg,
     Overrides,
     get_click_options,
     get_click_overrides,
@@ -74,7 +74,7 @@ def launch_this(
 
     def decoration_helper(func):
         sig = inspect.signature(func)
-        launch_args = _get_func_launch_args(sig, func.__doc__)
+        declared_args = _get_declared_args(sig, func.__doc__)
         
         func_doc = doc.parse(func.__doc__)
 
@@ -83,7 +83,7 @@ def launch_this(
 
         return _exec_launch_func(
             func,
-            launch_args,
+            declared_args,
             func_doc,
             ui=ui,
             join=join,
@@ -127,14 +127,14 @@ def _init_signal_handlers() -> None:
         signal.signal(signal.SIGQUIT, sigterm_handler)
 
 
-def _get_func_launch_args(signature: inspect.Signature, docstring: str = None) -> list[LaunchArg]:
+def _get_declared_args(signature: inspect.Signature, docstring: str = None) -> list[DeclaredArg]:
     # Extract more fine-grained information from the docstring
     param_docstrings = {}
     if docstring:
         parsed_doc = doc.parse(docstring)
         param_docstrings = {p.arg_name: p.description for p in parsed_doc.params}
 
-    launch_args = []
+    declared_args = []
 
     # Create CLI options for click
     for param in signature.parameters.values():
@@ -153,16 +153,16 @@ def _get_func_launch_args(signature: inspect.Signature, docstring: str = None) -
                 ptype = getattr(__builtins__, ptype, None)
 
         # type, default, docstring
-        launch_args.append(
-            LaunchArg(param.name, ptype, default, param_docstrings.get(param.name))
+        declared_args.append(
+            DeclaredArg(param.name, ptype, default, param_docstrings.get(param.name))
         )
 
-    return launch_args
+    return declared_args
 
 
 def _exec_launch_func(
     launch_func: Callable,
-    launch_args: list[LaunchArg],
+    declared_args: list[DeclaredArg],
     func_doc: str = None,
     *,
     ui: bool = False,
@@ -173,6 +173,8 @@ def _exec_launch_func(
     manage_foreign_nodes: bool = False,
     keep_alive: bool = False,
     allow_kwargs: bool = False,
+    # NOTE for internal use only, we don't want launchfiles that ignore their CLI args
+    _argv: list[str] = None,
 ):
     # NOTE this function should not make any assumptions about the launch_func
 
@@ -201,7 +203,7 @@ def _exec_launch_func(
         include_args: dict = glob[_bl_include_args]
         bl.logger.info(f"Including launch file: {includefile} (args={include_args})")
 
-        call_kw = {a.name: a.default for a in launch_args}
+        call_kw = {a.name: a.default for a in declared_args}
 
         for key, val in include_args.items():
             if allow_kwargs or key in call_kw:
@@ -259,7 +261,7 @@ def _exec_launch_func(
                 overrides.colormode,
             )
 
-            _expose_ros2_launch_function(launch_func, launch_args)
+            _expose_ros2_launch_function(launch_func, declared_args)
             return
 
     # If we get here we were not included by ROS2
@@ -328,7 +330,7 @@ def _exec_launch_func(
         else:
             launch_func_wrapper()
 
-    options = get_click_options(launch_args)
+    options = get_click_options(declared_args)
     options.extend(get_click_overrides(overrides))
 
     click_cmd = get_click_launch_command(
@@ -344,20 +346,20 @@ def _exec_launch_func(
         click_cmd.ignore_unknown_options = True
 
     try:
-        click_cmd.main()
+        click_cmd.main(_argv)
     except SystemExit as e:
         if e.code != 0:
             raise
 
 
-def _expose_ros2_launch_function(launch_func: Callable, launch_args: list[LaunchArg]):
+def _expose_ros2_launch_function(launch_func: Callable, declared_args: list[DeclaredArg]):
     """Helper function that exposes a function decorated by launch_this so that it can be included by a regular ROS2 launch file. We achieve this by generating a `generate_launch_description` function and adding it to the module globals where the launch function is defined.
 
     Parameters
     ----------
     launch_func : Callable
         The launch function.
-    launch_args : list[LaunchArg]
+    declared_args : list[LaunchArg]
         Arguments that should be declared.
     """
 
@@ -369,7 +371,7 @@ def _expose_ros2_launch_function(launch_func: Callable, launch_args: list[Launch
         ld = LaunchDescription()
 
         # Declare launch arguments from the function signature
-        for arg in launch_args:
+        for arg in declared_args:
             default = None
             if arg.default is not None:
                 default = str(arg.default)

@@ -43,7 +43,11 @@ except ImportError:
 
 from better_launch import __version__
 from better_launch.utils.introspection import get_launchfunc_signature_from_file
-from better_launch.utils.click import LaunchArg, Overrides, get_click_options, get_click_overrides
+from better_launch.utils.click import (
+    Overrides,
+    get_click_options,
+    get_click_overrides,
+)
 from better_launch.utils.better_logging import Colormode
 
 
@@ -109,14 +113,12 @@ class LaunchFile:
         self.doc = doc or f"{package}/{os.path.basename(launchfile)}"
 
     def run(self, ctx: click.Context, **kwargs) -> None:
-        """Execute this launch file.
-        """
+        """Execute this launch file."""
         raise NotImplementedError()
 
 
 class BetterLaunchPython(LaunchFile):
-    """This LaunchFile will handle better_launch python launch files.
-    """
+    """This LaunchFile will handle better_launch python launch files."""
 
     @classmethod
     def _get_launch_params_and_doc_bl_python(
@@ -168,8 +170,7 @@ class BetterLaunchPython(LaunchFile):
 
 
 class BetterLaunchToml(LaunchFile):
-    """This LaunchFile will handle better_launch TOML launch files.
-    """
+    """This LaunchFile will handle better_launch TOML launch files."""
 
     @classmethod
     def _get_launch_params_and_doc_bl_toml(
@@ -178,14 +179,17 @@ class BetterLaunchToml(LaunchFile):
         if not filepath.lower().endswith(".launch.toml"):
             raise ValueError("Not a toml file")
 
-        from better_launch.declarative.declarative import _get_toml_launch_args, load_toml
+        from better_launch.declarative.declarative import (
+            _get_toml_args,
+            load_toml,
+        )
 
         toml = load_toml(filepath)
         doc = toml.get("__comment__")
-        launch_args = _get_toml_launch_args(toml)
+        declared_args = _get_toml_args(toml)
 
         overrides = Overrides()
-        options = get_click_options(launch_args)
+        options = get_click_options(declared_args)
         options.extend(get_click_overrides(overrides, expose=True))
 
         return options, doc
@@ -201,35 +205,16 @@ class BetterLaunchToml(LaunchFile):
             flush=True,
         )
 
-        # Since the toml files are not executable, we need something else to run them. We 
-        # could create another script with a main function, but I don't think there's much
-        # of a point to this. Since it's the same process we also don't need to pass the 
-        # arguments, as click will gobble them up on its own.
         from better_launch.declarative.declarative import launch_toml
 
-        # FIXME when launched without this click will also see the package argument
-        # TODO this feels very hacky :<
-        args = [sys.argv[0], "--launchfile", self.filepath]
-        for key, arg in kwargs.items():
-            if arg is not None:
-                args.extend([f"--{key}", arg])
-        sys.argv = args
-        launch_toml(self.filepath)
-
-        # # BUG what are we running?
-        # # First argument becomes argv[0], so should be the program name
-        # args = ["python3", self.filepath]
-        # for key, arg in kwargs.items():
-        #     if arg is not None:
-        #         args.extend([f"--{key}", arg])
-
-        # # This does NOT return and will replace our executable with the new executable in the same process
-        # os.execvp("python3", [str(a) for a in args])
+        # Since the toml files are not executable, we need something else to run them. We
+        # could create another script with a main function, but I don't think there's much
+        # of a point to this.
+        launch_toml(self.filepath, launch_args=kwargs)
 
 
 class Ros2LaunchFile(LaunchFile):
-    """A LaunchFile that can handle regular ROS2 launch files (python, XML, and YAML).
-    """
+    """A LaunchFile that can handle regular ROS2 launch files (python, XML, and YAML)."""
 
     @classmethod
     def _option_from_ros2_kwargs(cls, kwargs: dict[str, Any]) -> click.Option:
@@ -389,8 +374,7 @@ class Ros2LaunchFile(LaunchFile):
 
 
 class ExecutableLaunchFile(LaunchFile):
-    """A LaunchFile that handles executable files.
-    """
+    """A LaunchFile that handles executable files."""
 
     def __init__(self, package, filepath):
         if not os.access(filepath, os.X_OK):
@@ -502,8 +486,7 @@ class LaunchfileSelectionCLI(click.MultiCommand):
 
 class PackageSelectionCLI(click.MultiCommand):
     def __init__(self, **kwargs):
-        """This subcommand will help in selecting a ROS package.
-        """
+        """This subcommand will help in selecting a ROS package."""
         options = [
             click.Option(
                 ["-v", "--version"],
@@ -546,7 +529,7 @@ In contrast to ROS2 launch, it also generates useful shell completion suggestion
         try:
             return LaunchfileSelectionCLI(name)
         except Exception:
-            # The LaunchfileSelectionCLI will throw a PackageNotFoundError if colcon failed 
+            # The LaunchfileSelectionCLI will throw a PackageNotFoundError if colcon failed
             # to install a package, and ValueError if the package name is invalid
             return None
 
