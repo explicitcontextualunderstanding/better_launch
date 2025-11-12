@@ -674,7 +674,7 @@ Takeoff in 3... 2... 1...
             package, _ = get_package_for_path(os.path.dirname(self.launchfile))
 
         if package:
-            if "/" in package or os.pathsep in package:
+            if "/" in package or os.path.sep in package:
                 raise ValueError(
                     f"Package must be a single name, not a path ({package})"
                 )

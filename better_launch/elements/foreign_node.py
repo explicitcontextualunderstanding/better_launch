@@ -125,7 +125,7 @@ def get_package_for_path(path: str) -> tuple[str, str]:
         # Not a package currently sourced, look for a package.xml somewhere on the path. This search
         # is somewhat expensive, but we expect it to be rare since usually packages should already
         # be sourced 99.9% of the time
-        while os.pathsep in path:
+        while os.path.sep in path:
             # The package.xml is usually found in install/<package>/share/<package>
             package_candidate = os.path.basename(path)
             candidates = [
@@ -149,7 +149,7 @@ def get_package_for_path(path: str) -> tuple[str, str]:
                         return name_tag.text, path
 
             # Go up one level
-            path = path.rsplit(os.pathsep, maxsplit=1)[0]
+            path = path.rsplit(os.path.sep, maxsplit=1)[0]
 
     return None, None
 
