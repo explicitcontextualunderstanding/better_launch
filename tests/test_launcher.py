@@ -24,7 +24,7 @@ def some_function_name():
     bl = BetterLaunch.instance()
     if bl:
         bl.shutdown()
-        nodes = bl.get_bl_nodes(include_components=True)
+        nodes = bl.get_nodes(include_components=True)
         still_alive = [not n.is_running for n in nodes]
         assert all(still_alive), f"The following nodes refused to shutdown: {still_alive}"
 

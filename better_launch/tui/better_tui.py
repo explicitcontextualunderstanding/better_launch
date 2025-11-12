@@ -46,6 +46,7 @@ class AppMode(IntEnum):
     CONFIRM_NODE_RESTART = auto()
     CONFIRM_NODE_KILL = auto()
     LOG_LEVEL = auto()
+    NODE_LOG_LEVEL = auto()
 
 
 @dataclass
@@ -63,6 +64,36 @@ _log_levels = {
     "DEBUG": LogLevel("DEBUG", logging.DEBUG, "ansibrightblue"),
     "MUTE": LogLevel("MUTE", 999, "grey"),
 }
+
+
+class NodeLogFilter(logging.Filter):
+    def __init__(self, name: str = ""):
+        super().__init__(name)
+        self.muted: set[str] = set()
+        self.hermit: str = None
+
+    def mute(self, node: str) -> None:
+        self.muted.add(node)
+    
+    def unmute(self, node: str) -> None:
+        self.muted.discard(node)
+
+    def set_hermit(self, node: str) -> None:
+        self.hermit = node
+
+    def clear(self) -> None:
+        self.muted.clear()
+        self.hermit = None
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if self.hermit:
+            if record.name != self.hermit:
+                return False
+
+        elif record.name in self.muted:
+            return False
+
+        return super().filter(record)
 
 
 # Custom level to block all output
@@ -123,6 +154,9 @@ class BetterTui:
         self.search_buffer: Buffer = None
         self.footer_menu: FooterMenu = None
 
+        # Allows us to have more control over what is showing
+        self.log_filter = NodeLogFilter()
+
         self._setup_key_bindings()
 
     def run(self):
@@ -140,6 +174,10 @@ class BetterTui:
         def _run_launch_func() -> None:
             """Runs the launch function passed to the constructor and sets up the log capturing mechanism."""
             self.launch_func()
+
+            # Doing this earlier will mess up screen output somehow
+            log_handler: logging.Handler = roslog.launch_config.get_screen_handler()
+            log_handler.addFilter(self.log_filter)
 
             bl = BetterLaunch.wait_for_instance()
             set_title(os.path.basename(bl.launchfile))
@@ -304,6 +342,7 @@ class BetterTui:
         self.mode = mode
 
         if mode == AppMode.STANDARD:
+            self.selected_node = None
             self.footer_text = self.footer_default
 
         elif mode == AppMode.CONFIRM_EXIT:
@@ -314,7 +353,7 @@ class BetterTui:
             self.footer_text = ""
 
             bl = BetterLaunch.instance()
-            self.nodes_snapshot = bl.get_bl_nodes(
+            self.nodes_snapshot = bl.get_nodes(
                 include_components=True,
                 include_launch_service=True,
                 include_foreign=self.manage_foreign_nodes,
@@ -333,7 +372,7 @@ class BetterTui:
             node = item[2]
             self.selected_node = node
 
-            choices = ["info"]
+            choices = ["info", "log level"]
             if node.is_running:
                 if node.is_lifecycle_node():
                     choices.append("lifecycle")
@@ -385,6 +424,10 @@ class BetterTui:
             active = levels.index(self.log_level)
             self.footer_menu.set_items(items, active)
 
+        elif mode == AppMode.NODE_LOG_LEVEL:
+            self.footer_text = f"Node {self.selected_node.fullname}"
+            self.footer_menu.set_items(["mute", "mute others", "unmute", "unmute all"])
+
     def _handle_menu_accept(self, idx: int) -> None:
         """Decide what to do when a menu item is activated by the user. Usually this will result in a state transition (via :py:meth:`_switch_mode`) and some side effects.
 
@@ -411,6 +454,9 @@ class BetterTui:
 
             if action == "info":
                 self._switch_mode(AppMode.NODE_INFO)
+
+            if action == "log level":
+                self._switch_mode(AppMode.NODE_LOG_LEVEL)
 
             elif action == "lifecycle":
                 self._switch_mode(AppMode.NODE_LIFECYCLE)
@@ -459,6 +505,19 @@ class BetterTui:
 
             level = _log_levels[item]
             self._set_log_level(level)
+            self._menu_cancel()
+
+        elif self.mode == AppMode.NODE_LOG_LEVEL:
+            node = self.selected_node.fullname
+
+            if item == "mute":
+                self.log_filter.mute(node)
+            elif item == "mute others":
+                self.log_filter.set_hermit(node)
+            elif item == "unmute":
+                self.log_filter.unmute(node)
+            elif item == "unmute all":
+                self.log_filter.clear()
             self._menu_cancel()
 
     def _make_layout(self) -> Layout:

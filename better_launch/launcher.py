@@ -224,7 +224,7 @@ Takeoff in 3... 2... 1...
         """
         if exit_with_last_node:
             while not self._shutdown_future.done():
-                nodes = self.get_bl_nodes(
+                nodes = self.get_nodes(
                     include_components=True,
                     include_launch_service=True,
                     include_foreign=False,
@@ -243,6 +243,8 @@ Takeoff in 3... 2... 1...
             except (CancelledError, TimeoutError):
                 pass
 
+        self.logger.critical(f"Reminder: log files are at {roslog.launch_config.log_dir}")
+
     def get_unique_name(self, name: str = "", check_running_nodes: bool = True) -> str:
         """Returns a unique name. If a name is provided it will be prepended with an underscore.
 
@@ -260,7 +262,7 @@ Takeoff in 3... 2... 1...
         """
         node_names = set()
         if check_running_nodes:
-            nodes = self.get_bl_nodes(include_components=True, include_foreign=True)
+            nodes = self.get_nodes(include_components=True, include_foreign=True)
             node_names.update(n.name for n in nodes)
 
         while True:
@@ -295,7 +297,7 @@ Takeoff in 3... 2... 1...
 
         return groups
 
-    def get_bl_nodes(
+    def get_nodes(
         self,
         *,
         include_components: bool = False,
@@ -366,7 +368,7 @@ Takeoff in 3... 2... 1...
     def all_ros2_node_names(self) -> list[str]:
         """Returns a list of all currently registered node's full names (namespace + name).
 
-        This list is guaranteed to be complete as far as ROS2 is concerned. If you require a node object you can actually interact with consider using :py:meth:`query_node` or :py:meth:`get_bl_nodes` instead.
+        This list is guaranteed to be complete as far as ROS2 is concerned. If you require a node object you can actually interact with consider using :py:meth:`query_node` or :py:meth:`get_nodes` instead.
 
         Returns
         -------
@@ -404,7 +406,7 @@ Takeoff in 3... 2... 1...
         AbstractNode
             The first node matching the provided pattern, or None if none matched.
         """
-        for node in self.get_bl_nodes(
+        for node in self.get_nodes(
             include_components=include_components,
             include_launch_service=include_launch_service,
             include_foreign=include_foreign,
@@ -440,7 +442,7 @@ Takeoff in 3... 2... 1...
         Generator[AbstractNode, None, None]
             The nodes matching the pattern.
         """
-        for node in self.get_bl_nodes(
+        for node in self.get_nodes(
             include_components=include_components,
             include_launch_service=include_launch_service,
             include_foreign=include_foreign,
@@ -584,7 +586,7 @@ Takeoff in 3... 2... 1...
             self.logger.info(f"Shutdown: {reason}")
 
         # Tell all nodes to shut down
-        for n in self.get_bl_nodes(
+        for n in self.get_nodes(
             include_components=False, include_launch_service=True, include_foreign=False
         ):
             try:
