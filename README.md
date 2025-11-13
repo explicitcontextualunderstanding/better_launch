@@ -328,7 +328,14 @@ I use [py-spy](https://github.com/benfred/py-spy) to see where *better_launch* i
 # 📥 Installation
 I'm working on getting a .deb package up and running. Until then you may follow the steps below!
 
-*better_launch* is a regular ROS2 package, which means you can install it in your workspace and then use it in all launch files within that workspace. Since ROS2 has no good way of handling python depencies yet you'll have to do a few things by hand.
+*better_launch* is a regular ROS2 package, which means you can install it in your workspace and then use it in all launch files within that workspace. 
+
+```bash
+cd your/ros2/workspace/src
+git clone https://github.com/dfki-ric/better_launch.git
+```
+
+Since ROS2 has no good way of handling python dependencies yet, you'll have to do a few things by hand.
 
 
 <details>
