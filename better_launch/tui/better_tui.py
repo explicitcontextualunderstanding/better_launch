@@ -112,6 +112,14 @@ class BetterTui:
     ):
         """Our TUI class. Use :py:meth:`run` to start the TUI.
 
+        In order to override keybindings you may set the BL_TUI_KEYBINDS environment variable. For example, this will bind the nodes menu to ctrl-n and setting the log level to ctrl-l:
+
+        .. code:: bash
+
+            BL_TUI_KEYBINDS="nodes: c-n; loglevel: c-l" bl better_launch 02_ui.launch.py
+
+        The syntax is always `<action>:<keys>` separated by `;`. The valid actions are `exit`, `mute`, `nodes`, `loglevel`, `cancel`, `enter`, `next`, `previous`. For valid key specifiers see `prompt_toolkit <https://python-prompt-toolkit.readthedocs.io/en/stable/pages/advanced_topics/key_bindings.html>`_. Take special note of how the Alt/Meta/Option key is treated. 
+
         Parameters
         ----------
         launch_func : Callable[[], None]
