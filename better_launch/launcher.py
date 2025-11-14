@@ -12,6 +12,7 @@ from pathlib import Path
 from concurrent.futures import Future, CancelledError, TimeoutError
 from contextlib import contextmanager
 import logging
+import zlib
 import yaml
 import secrets
 
@@ -204,6 +205,8 @@ Default log level is \x1b[34;20m{roslog.launch_config.level} ({logging.getLevelN
 All log files can be found at
 \x1b[34;20m{roslog.launch_config.log_dir}\x1b[0m
 
+This launchfile's namespace is \x1b[34;20m{self.get_launchfile_namespace()}\x1b[0m
+
 Takeoff in 3... 2... 1...
 
            *            ,:
@@ -228,15 +231,36 @@ Takeoff in 3... 2... 1...
         print(msg)
         self.logger.critical(f"Log files at {roslog.launch_config.log_dir}")
 
+    def get_launchfile_namespace(self) -> str:
+        """Returns a namespace specific to this launchfile without a trailing slash. 
+        
+        Note: this is not reproducable across launches.
+
+        The namespace will follow the pattern `/better_launch/<launchfile>`, where `<launchfile>` is the name of the launchfile without the `.launch.X` extension, followed by an underscore and a short hash based on the launchfile's path. This hash is stable as long as the launchfile remains in the exact same location.
+
+        Returns
+        -------
+        str
+            The launchfile namespace.
+        """
+        path, launchfile_name = self.launchfile.rsplit(os.pathsep, maxsplit=1)
+        try:
+            idx = launchfile_name.index(".launch.")
+            launchfile_name = launchfile_name[:idx]
+        except ValueError:
+            pass
+
+        # 4 digits will usually be enough
+        h = zlib.crc32(path) & 0xFFFF
+        return f"/better_launch/{launchfile_name}_{h:04x}"
+
     # FIXME Due to https://github.com/ros2/rosidl_python/issues/141 this cannot proceed right now
     # as I don't want to make a separate package for message types. However, this pull request
     # seems to be almost ready: https://github.com/ament/ament_cmake/pull/587
     def start_launch_services(self) -> None:
         """Start additional ROS services that can be used to interact with the launch file.
 
-        The services will become available in the `/better_launch/<launchfile>` namespace. `<launchfile>` is the name of the launchfile without the `.launch.X` extension, followed by an underscore and the process PID. 
-
-        For example, running a launchfile called `mylaunchfile.launch.py`, the services would live in a namespace like `/better_launch/mylaunchfile_1234/`.
+        The services will become available in the `/better_launch/<launchfile>_<hash>` namespace. See :py:meth:`get_launchfile_namespace` for more details.
 
         Calling this function later or multiple times is fine.
         """
@@ -316,16 +340,7 @@ Takeoff in 3... 2... 1...
 
             return res
 
-        # TODO bl start file
-
-        launchfile_name = self.launchfile.rsplit(os.pathsep, maxsplit=1)[-1]
-        try:
-            idx = launchfile_name.index(".launch.")
-            launchfile_name = launchfile_name[:idx]
-        except ValueError:
-            pass
-
-        namespace = f"/better_launch/{launchfile_name}_{os.getpid()}"
+        namespace = self.get_launchfile_namespace()
 
         self._status_service = self.service(
             namespace + "/status",

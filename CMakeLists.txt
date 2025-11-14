@@ -24,7 +24,9 @@ endif()
 
 # Our message and service files
 rosidl_generate_interfaces(${PROJECT_NAME}_msgs
+  "srv/GetLaunchfileStatus.srv"
   "srv/KillNode.srv"
+  "srv/OrchesterTransition.srv"
   "srv/RestartNode.srv"
 )
 ament_export_dependencies(rosidl_default_runtime)

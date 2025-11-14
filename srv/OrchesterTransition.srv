@@ -1,0 +1,9 @@
+uint8 STAGE_PRISTINE = 0
+uint8 STAGE_CONFIGURED = 1
+uint8 STAGE_ACTIVE = 2
+uint8 STAGE_FINALIZED = 3
+
+uint8 target_stage
+---
+bool success
+string message
