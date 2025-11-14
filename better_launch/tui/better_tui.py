@@ -144,7 +144,7 @@ class BetterTui:
         self.history = InMemoryHistory()
         self.bindings = KeyBindings()
 
-        # Allows the user to override keybindings
+        # Allows the user to override keybindings. Keybindings as lists to support meta keys.
         # See https://python-prompt-toolkit.readthedocs.io/en/stable/pages/advanced_topics/key_bindings.html
         self.keybinds = {
             "exit": ["c-c"],
