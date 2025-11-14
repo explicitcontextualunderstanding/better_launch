@@ -584,7 +584,7 @@ class ForeignNode(AbstractNode, LiveParamsMixin):
         return (
             info
             + f"""
-<bold>Process</bold>
+\x1b[1mProcess\x1b[0m
   PID:       {self.pid}
   Cmd Args:  {self.cmd_args}
 """

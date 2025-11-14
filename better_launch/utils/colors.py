@@ -27,3 +27,5 @@ class HighContrastColorGenerator:
 get_contrast_color = HighContrastColorGenerator()
 """A global instance to generate sequences of visually distinct colors.
 """
+
+# TODO define some standard colors we want to use and use them in logging and node info sheets

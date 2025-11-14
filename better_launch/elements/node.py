@@ -442,7 +442,7 @@ class Node(AbstractNode, LiveParamsMixin):
         return (
             info
             + f"""
-<bold>Process</bold>
+\x1b[1mProcess\x1b[0m
   PID:       {self.pid}
   Respawns:  {self._respawn_retries} / {self.max_respawns}
   Cmd Args:  {self.cmd_args}

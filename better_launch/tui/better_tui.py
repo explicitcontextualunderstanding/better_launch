@@ -15,7 +15,7 @@ from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
 from prompt_toolkit.widgets import TextArea
-from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -101,8 +101,8 @@ logging.addLevelName(999, "MUTE")
 
 
 class BetterTui:
-    footer_default = HTML(
-        " <orange>^C</orange> Quit  <orange>space</orange> Mute  <orange>F1</orange> Nodes  <orange>F9</orange> Log Level"
+    footer_default = ANSI(
+        " \x1b[38;5;208m^C\x1b[0m Quit  \x1b[38;5;208mspace\x1b[0m Mute  \x1b[38;5;208mF1\x1b[0m Nodes  \x1b[38;5;208mF9\x1b[0m Log Level"
     )
 
     def __init__(
@@ -393,8 +393,9 @@ class BetterTui:
             # Simply print to our captured stdout
             cols = get_app().output.get_size().columns
             bar = "\n" + "=" * cols + "\n"
+            # NOTE we should not use html formatting as some node params may be html-like
             text = self.selected_node.get_info_sheet()
-            print_formatted_text(bar, "\n", HTML(text), bar)
+            print_formatted_text(bar, "\n", ANSI(text), bar)
 
             self._menu_cancel()
 

@@ -545,7 +545,7 @@ class Composer(AbstractNode):
         return (
             info
             + f"""
-<bold>Components</bold>
+\x1b[1mComponents\x1b[0m
 {components}
 """
         )
