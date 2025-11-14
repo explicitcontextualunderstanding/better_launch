@@ -97,7 +97,7 @@ def get_click_overrides(overrides: Overrides, expose: bool = False) -> list[clic
             ["--bl_colormode_override"],
             type=click.types.Choice([c.name for c in Colormode], case_sensitive=False),
             show_choices=True,
-            default=Colormode.DEFAULT.name,
+            default=None,
             help="Override the logging color mode",
             expose_value=expose,
             callback=set_override_colormode,
