@@ -3,6 +3,7 @@ from typing import Literal, Callable
 from enum import IntEnum, auto
 import logging
 import threading
+import re
 from dataclasses import dataclass
 
 from prompt_toolkit import Application, print_formatted_text
@@ -101,10 +102,6 @@ logging.addLevelName(999, "MUTE")
 
 
 class BetterTui:
-    footer_default = ANSI(
-        " \x1b[38;5;208m^C\x1b[0m Quit  \x1b[38;5;208mspace\x1b[0m Mute  \x1b[38;5;208mF1\x1b[0m Nodes  \x1b[38;5;208mF9\x1b[0m Log Level"
-    )
-
     def __init__(
         self,
         launch_func: Callable[[], None],
@@ -139,8 +136,57 @@ class BetterTui:
         self.history = InMemoryHistory()
         self.bindings = KeyBindings()
 
+        # Allows the user to override keybindings
+        # See https://python-prompt-toolkit.readthedocs.io/en/stable/pages/advanced_topics/key_bindings.html
+        self.keybinds = {
+            "exit": ["c-c"],
+            "mute": ["space"],
+            "nodes": ["f1"],
+            "loglevel": ["f9"],
+            "cancel": ["escape"],
+            "enter": ["enter"],
+            "next": ["tab"],
+            "previous": ["s-tab"],
+        }
+
+        # Keybind overrides
+        alt_keybinds = os.environ.get("BL_TUI_KEYBINDS")
+        if alt_keybinds:
+            for item in alt_keybinds.split(";"):
+                item = item.strip()
+                if not re.match(r"[a-z_]+:\s*[\w ]+", item):
+                    raise ValueError(f"Invalid keybind override {item}")
+                
+                action, keys = item.split(":", maxsplit=1)
+                if action not in self.keybinds:
+                    logging.getLogger().warning(f"Ignoring unknown keybind {action}")
+                
+                self.keybinds[action] = keys.strip().split(" ")
+
+        # Make the key combinations in our footer show up a little nicer
+        default_footer_text = " \x1b[38;5;208m{exit}\x1b[0m Quit  \x1b[38;5;208m{mute}\x1b[0m Mute  \x1b[38;5;208m{nodes}\x1b[0m Nodes  \x1b[38;5;208m{loglevel}\x1b[0m Log Level"
+
+        keys_print = {}
+        for action, keys in self.keybinds.items():
+            # We only show the first key (or two in case of meta + key, see below)
+            k = keys[0]
+            
+            # Control as ^X
+            if k.startswith("c-"):
+                k = "^" + k[2].upper() + k[3:]
+            # Meta as M-
+            elif k == "escape" and len(keys) > 1:
+                # Represented as escape + a key stroke in prompt_toolkit
+                k = "M-" + keys[1][0].upper() + keys[1][1:]
+            else:
+                k = k[0].upper() + k[1:]
+
+            keys_print[action] = k
+
+        self.default_footer_text = ANSI(default_footer_text.format(**keys_print))
+
         self.mode = AppMode.STANDARD
-        self.footer_text: str = self.footer_default
+        self.footer_text: str = self.default_footer_text
         self.nodes_snapshot: list[AbstractNode] = []
         self.selected_node: AbstractNode = None
 
@@ -281,41 +327,42 @@ class BetterTui:
         mode_standard = Condition(lambda: self.mode == AppMode.STANDARD)
         menu_visible = Condition(self._is_menu_visible)
 
-        @bind("c-c")
+
+        @bind(*self.keybinds["exit"])
         async def _(event: KeyPressEvent):
             self._switch_mode(AppMode.CONFIRM_EXIT)
 
-        @bind("space", filter=~Condition(self._is_search_visible))
+        @bind(*self.keybinds["mute"], filter=~Condition(self._is_search_visible))
         def _(event: KeyPressEvent):
             self.muted = not self.muted
             level = _log_levels["MUTE"] if self.muted else self.prev_log_level
             self._set_log_level(level)
 
-        @bind("f1", filter=mode_standard)
+        @bind(*self.keybinds["nodes"], filter=mode_standard)
         def _(event: KeyPressEvent):
             self._switch_mode(AppMode.SEARCH_NODE)
 
-        @bind("f9", filter=mode_standard)
+        @bind(*self.keybinds["loglevel"], filter=mode_standard)
         def _(event: KeyPressEvent):
             self._switch_mode(AppMode.LOG_LEVEL)
 
         # Menu interactions
-        @bind("escape", filter=menu_visible, eager=True)
+        @bind(*self.keybinds["cancel"], filter=menu_visible, eager=True)
         def _(event: KeyPressEvent):
             self._switch_mode(AppMode.STANDARD)
 
-        @bind("enter", filter=menu_visible)
+        @bind(*self.keybinds["enter"], filter=menu_visible)
         def _(event: KeyPressEvent):
             if not self.footer_menu.items:
                 self._menu_cancel()
             else:
                 self._handle_menu_accept(self.footer_menu.selected)
 
-        @bind("tab", filter=menu_visible)
+        @bind(*self.keybinds["next"], filter=menu_visible)
         def _(event: KeyPressEvent):
             self.footer_menu.select_next()
 
-        @bind("s-tab", filter=menu_visible)
+        @bind(*self.keybinds["previous"], filter=menu_visible)
         def _(event: KeyPressEvent):
             self.footer_menu.select_prev()
 
@@ -343,7 +390,7 @@ class BetterTui:
 
         if mode == AppMode.STANDARD:
             self.selected_node = None
-            self.footer_text = self.footer_default
+            self.footer_text = self.default_footer_text
 
         elif mode == AppMode.CONFIRM_EXIT:
             self.footer_text = "Shutdown nodes and quit?"
