@@ -330,21 +330,23 @@ I'm working on getting a .deb package up and running. Until then you may follow 
 
 *better_launch* is a regular ROS2 package, which means you can install it in your workspace and then use it in all launch files within that workspace. 
 
-```bash
-cd your/ros2/workspace/src
-git clone https://github.com/dfki-ric/better_launch.git
-```
+ROS2 is slowly [moving towards pixi](https://docs.ros.org/en/kilted/Installation/Windows-Install-Binary.html) as the main python3 environment, but I have not tested it yet. However, by now all the dependencies have been added into rosdep, so the following should get you up and running:
 
-Since ROS2 has no good way of handling python dependencies yet, you'll have to do a few things by hand.
+```bash
+# Install dependencies
+sudo apt update
+rosdep update
+rosdep install --from-paths src --ignore-src -y
+```
 
 
 <details>
     <summary>Python venv</summary>
 
-A python *venv* or virtual environment is the preferred setup, as you have more control over its content, will not run into conflicts with other workspaces, and won't be influenced by e.g. OS updates. However, setting up a usable python environment for ROS2 is [surprisingly difficult](https://github.com/ros2/ros2/issues/1094). Here is a setup that works for us:
+If you prefer a python virtual environment instead, here is a setup that works for us:
 
 ```bash
-# Install some prerequisites (depends on your OS and distro)
+# Install some prerequisites
 sudo apt install python3-pip python3-venv
 
 # Create a virtual environment for your workspace
@@ -358,29 +360,9 @@ source ./venv/bin/activate
 
 # Activate your ROS2 workspace
 source ./install/setup.bash
-```
 
-Then run the following commands to install the dependencies into your *venv*.
-
-```bash
-# Can't use rosdep as it doesn't know most python packages
+# Install the dependencies into your venv
 pip install -r path/to/better_launch/requirements.txt
-```
-</details>
-
-<details>
-    <summary>System</summary>
-
-If you don't want to setup a *venv* you can install the dependencies as system packages. This can be done with rosdep:
-
-```bash
-sudo apt update
-rosdep update
-rosdep install --from-paths src --ignore-src -y
-```
-
-# Install any dependencies not offered by your package manager via pip
-sudo pip install --break-system-packages docstring_parser
 ```
 </details>
 
@@ -388,10 +370,19 @@ sudo pip install --break-system-packages docstring_parser
 No matter which path you choose, once all the dependencies are installed you should build *better_launch* / your workspace.
 
 ```bash
-cd your/ros2/workspace
+# Get better_launch into your workspace src folder
+cd <your/ros2/workspace>/src
+git clone https://github.com/dfki-ric/better_launch.git
+```
+
+```bash
+# Build the better_launch package
+cd <your/ros2/workspace>
 colcon build --packages-up-to better_launch
 source install/setup.bash
+```
 
+```bash
 # Verify installation
 bl --help
 ```
