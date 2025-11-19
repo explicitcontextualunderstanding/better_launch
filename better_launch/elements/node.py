@@ -182,9 +182,11 @@ class Node(AbstractNode, LiveParamsMixin):
                 # launch_ros/actions/node.py:206
 
                 # Qualifier to create node-specific remaps
-                qualifier = self.remap_qualifier
-                if qualifier and not qualifier.endswith(":"):
-                    qualifier += ":"
+                qualifier = ""
+                if self.remap_qualifier:
+                    qualifier = self.remap_qualifier
+                    if not qualifier.endswith(":"):
+                        qualifier += ":"
                 
                 for src, dst in self._ros_args().items():
                     if qualifier:
