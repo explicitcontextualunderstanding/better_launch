@@ -317,7 +317,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">exit_with_last_node</span><span class="p">:</span>
             <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shutdown_future</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
-                <span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_nodes</span><span class="p">(</span>
+                <span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
                         <span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                         <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                         <span class="n">include_foreign</span><span class="o">=</span><span class="kc">False</span>
@@ -355,9 +355,9 @@
         <span class="k">return</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">_generate_uuid</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="BetterLaunch.all_groups">
-<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.all_groups">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">all_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Group</span><span class="p">]:</span>
+<div class="viewcode-block" id="BetterLaunch.get_groups">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.get_groups">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Group</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a list of all in the order they were created.</span>
 
 <span class="sd">        Returns</span>
@@ -378,9 +378,9 @@
         <span class="k">return</span> <span class="n">groups</span></div>
 
 
-<div class="viewcode-block" id="BetterLaunch.all_nodes">
-<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.all_nodes">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">all_nodes</span><span class="p">(</span>
+<div class="viewcode-block" id="BetterLaunch.get_bl_nodes">
+<a class="viewcode-back" href="../../better_launch_custom.html#better_launch.launcher.BetterLaunch.get_bl_nodes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_bl_nodes</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_components</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -404,7 +404,7 @@
 <span class="sd">            A list of all nodes, sorted by when they were added.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">nodes</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_groups</span><span class="p">()</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_groups</span><span class="p">()</span>
 
         <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
@@ -450,7 +450,7 @@
 <span class="sd">            The first node matching the provided regex, or None if none matched.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">reg</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">fullname_regex</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_nodes</span><span class="p">(</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
             <span class="n">include_components</span><span class="o">=</span><span class="n">include_components</span><span class="p">,</span>
             <span class="n">include_launch_service</span><span class="o">=</span><span class="n">include_launch_service</span><span class="p">,</span>
             <span class="n">include_foreign</span><span class="o">=</span><span class="n">include_foreign</span><span class="p">,</span>
@@ -492,7 +492,7 @@
         <span class="n">reg</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">name_regex</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span>
             <span class="n">node</span>
-            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_nodes</span><span class="p">(</span>
+            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
                 <span class="n">include_components</span><span class="o">=</span><span class="n">include_components</span><span class="p">,</span>
                 <span class="n">include_launch_service</span><span class="o">=</span><span class="n">include_launch_service</span><span class="p">,</span>
                 <span class="n">include_foreign</span><span class="o">=</span><span class="n">include_foreign</span><span class="p">,</span>
@@ -647,7 +647,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shutdown: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Tell all nodes to shut down</span>
-        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_nodes</span><span class="p">(</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
             <span class="n">include_components</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_foreign</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
@@ -832,11 +832,11 @@
         <span class="n">configfile</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">subdir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
-        <span class="n">node_or_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Node</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">qualifier</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Node</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Load parameters from a yaml file located through :py:meth:`find`.</span>
 
-<span class="sd">        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `node_or_namespace` was passed. Otherwise, if `node_or_namespace` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</span>
+<span class="sd">        If the config only contains a `ros__parameters` section the entire config is returned regardless of whether `qualifier` was passed. Otherwise, if `qualifier` is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</span>
 
 <span class="sd">        The following wildcards are supported for parameter sections:</span>
 <span class="sd">        * `/**`: matches any number of tokens, may be followed by additional tokens and a node name</span>
@@ -856,7 +856,7 @@
 <span class="sd">            The name of the config file to locate.</span>
 <span class="sd">        subdir : str, optional</span>
 <span class="sd">            A path fragment that the config file must be located in.</span>
-<span class="sd">        node_or_namespace : str | Node, optional</span>
+<span class="sd">        qualifier : str | Node, optional</span>
 <span class="sd">            Used to specifiy which section of the config to return.</span>
 
 <span class="sd">        Returns</span>
@@ -867,7 +867,7 @@
 <span class="sd">        Raises</span>
 <span class="sd">        ------</span>
 <span class="sd">        ValueError</span>
-<span class="sd">            If the path cannot be resolved, if `node_or_namespace` is supplied and no matching section could be found, or if a substitution failed.</span>
+<span class="sd">            If the path cannot be resolved, if `qualifier` is supplied and no matching section could be found, or if a substitution failed.</span>
 <span class="sd">        IOError</span>
 <span class="sd">            If the config file could not be read.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -882,8 +882,8 @@
 
         <span class="n">final_params</span> <span class="o">=</span> <span class="p">{}</span>
 
-        <span class="k">if</span> <span class="n">node_or_namespace</span><span class="p">:</span>
-            <span class="n">ns</span> <span class="o">=</span> <span class="n">node_or_namespace</span>
+        <span class="k">if</span> <span class="n">qualifier</span><span class="p">:</span>
+            <span class="n">ns</span> <span class="o">=</span> <span class="n">qualifier</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ns</span><span class="p">,</span> <span class="n">AbstractNode</span><span class="p">):</span>
                 <span class="n">ns</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">fullname</span>
 

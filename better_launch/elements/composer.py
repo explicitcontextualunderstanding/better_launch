@@ -520,27 +520,9 @@ class Composer(AbstractNode):
             UnloadNode,
             req,
             timeout=5.0,
-            call_async=True,
         )
 
-        # ROS2 has its own implementation of a future that doesn't support timeouts...
-        if timeout == 0.0:
-            return True
-
-        elif timeout is None:
-            while not res.done():
-                time.sleep(0.05)
-
-        else:
-            start = time.time()
-            while time.time() - start < timeout:
-                if res.done():
-                    break
-                time.sleep(0.05)
-            else:
-                raise TimeoutError("Component did not unload within the specified timeout")
-
-        if res.result().success:
+        if res.success:
             # Usually Component.shutdown() takes care of this, but the user can call 
             # unload_component() directly
             if isinstance(component, Component):
@@ -551,7 +533,7 @@ class Composer(AbstractNode):
             return True
 
         self.logger.error(
-            f"Unloading component {cid} ({cname}) failed: {res.result().error_message}"
+            f"Unloading component {cid} ({cname}) failed: {res.error_message}"
         )
         return False
 
@@ -563,7 +545,7 @@ class Composer(AbstractNode):
         return (
             info
             + f"""
-<bold>Components</bold>
+\x1b[1mComponents\x1b[0m
 {components}
 """
         )

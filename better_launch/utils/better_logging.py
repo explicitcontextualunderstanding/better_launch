@@ -3,6 +3,7 @@ import os
 import re
 import logging
 from datetime import datetime
+import enum
 
 import better_launch.ros.logging as roslog
 from .colors import get_contrast_color
@@ -12,11 +13,16 @@ from .colors import get_contrast_color
 ROSLOG_PATTERN_ROS = "%%{severity}%%{time}%%{message}"
 
 # Regular expression matching ROSLOG_PATTERN_ROS. The named groups will be matched to log
-# Record attributes via their group names. 
+# Record attributes via their group names.
 ROSLOG_PATTERN_BL = r"%%(?P<levelname>\w+)%%(?P<created>[\d.]+)%%(?P<msg>[\s\S]*)"
 
 
-Colormode = Literal["default", "severity", "source", "none", "rainbow"]
+class Colormode(enum.Enum):
+    DEFAULT = enum.auto()
+    SEVERITY = enum.auto()
+    SOURCE = enum.auto()
+    NONE = enum.auto()
+    RAINBOW = enum.auto()
 
 
 default_log_colormap = {
@@ -81,7 +87,9 @@ class PrettyLogFormatter(logging.Formatter):
         *,
         defaults: dict[str, Any] = None,
         roslog_pattern: str = None,
-        source_colors: str | int | Iterable[int] | dict[str, Any] = default_source_color,
+        source_colors: (
+            str | int | Iterable[int] | dict[str, Any]
+        ) = default_source_color,
         log_colors: str | int | Iterable[int] | dict[str, Any] = None,
         no_colors: bool = False,
     ):
@@ -105,7 +113,7 @@ class PrettyLogFormatter(logging.Formatter):
         defaults : dict[str, Any], optional
             Defaults the formatter may use when formatting strings.
         roslog_pattern : str, optional
-            The pattern used for matching incoming log messages. The pattern should define named groups that will be matched to logging.Record attributes via their names. 
+            The pattern used for matching incoming log messages. The pattern should define named groups that will be matched to logging.Record attributes via their names.
         source_colors : str | int | Iterable[int] | dict[str, Any], optional
             Colors to use when formatting `sourcecolor_start` tags based on the source of the log report. If a string, integer or iterable, use this as the color for all sources. If None, use a different color for every source. Pass a dict to specify custom colors for a set of sources.
         log_colors : str | int | Iterable[int] | dict[str, Any], optional
@@ -174,7 +182,7 @@ class PrettyLogFormatter(logging.Formatter):
 
         return ""
 
-    def formatTime(self, record, datefmt=None):
+    def formatTime(self, record: logging.LogRecord, datefmt: str = None) -> str | float:
         try:
             dt: datetime = self.converter(record.created)
             if datefmt:
@@ -183,7 +191,7 @@ class PrettyLogFormatter(logging.Formatter):
         except Exception:
             return record.created
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         match = self.roslog_pattern.match(record.msg)
 
         if match:
@@ -288,7 +296,7 @@ def configure_logger(
             if screen_handler not in logger.handlers:
                 if not screen_formatter:
                     screen_formatter = roslog.launch_config.screen_formatter
-                
+
                 screen_handler.setFormatterFor(logger, screen_formatter)
                 logger.addHandler(screen_handler)
 
@@ -297,12 +305,21 @@ def configure_logger(
             if common_log_handler not in logger.handlers:
                 if not log_formatter:
                     log_formatter = roslog.launch_config.file_formatter
-                
+
                 common_log_handler.setFormatterFor(logger, log_formatter)
                 logger.addHandler(common_log_handler)
 
         elif sink == "own_log":
-            own_log_handler = roslog.launch_config.get_log_file_handler(logger.name + ".log")
+            # Make sure the logfile is not in /
+            logfile = logger.name.strip("/").replace("/", os.path.sep) + ".log"
+
+            # We use namespaces for nesting the logfile in a directory structure
+            os.makedirs(
+                os.path.join(roslog.launch_config.log_dir, os.path.dirname(logfile)),
+                exist_ok=True,
+            )
+
+            own_log_handler = roslog.launch_config.get_log_file_handler(logfile)
             if own_log_handler not in logger.handlers:
                 if not log_formatter:
                     log_formatter = roslog.launch_config.file_formatter
@@ -315,7 +332,7 @@ def init_logging(
     log_config: roslog.LaunchConfig,
     screen_log_format: str = None,
     file_log_format: str = None,
-    colormode: Colormode = "default",
+    colormode: Colormode = Colormode.DEFAULT,
 ) -> None:
     if not screen_log_format:
         screen_log_format = PrettyLogFormatter.default_screen_format
@@ -323,23 +340,23 @@ def init_logging(
     if not file_log_format:
         file_log_format = PrettyLogFormatter.default_file_format
 
-    if colormode == "default":
+    if colormode == Colormode.DEFAULT:
         src_color = default_source_color
         log_color = None
-    elif colormode == "severity":
+    elif colormode == Colormode.SEVERITY:
         src_color = ""
         log_color = None
-    elif colormode == "source":
+    elif colormode == Colormode.SOURCE:
         src_color = None
         log_color = ""
-    elif colormode == "none":
+    elif colormode == Colormode.NONE:
         src_color = ""
         log_color = ""
-    elif colormode == "rainbow":
+    elif colormode == Colormode.RAINBOW:
         src_color = None
         log_color = None
     else:
-        raise ValueError("Invalid colormode " + colormode)
+        raise ValueError(f"Invalid colormode {colormode}")
 
     # We'll handle formatting and color ourselves, just get the nodes to comply
     os.environ["RCUTILS_CONSOLE_OUTPUT_FORMAT"] = ROSLOG_PATTERN_ROS

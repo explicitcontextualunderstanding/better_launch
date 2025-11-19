@@ -875,8 +875,8 @@ Note that this will not appear in the logs!</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_launch.launcher.BetterLaunch.all_groups">
-<span class="sig-name descname"><span class="pre">all_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.all_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.launcher.BetterLaunch.all_groups" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="better_launch.launcher.BetterLaunch.get_groups">
+<span class="sig-name descname"><span class="pre">get_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.get_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.launcher.BetterLaunch.get_groups" title="Link to this definition"></a></dt>
 <dd><p>Returns a list of all in the order they were created.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -889,8 +889,8 @@ Note that this will not appear in the logs!</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_launch.launcher.BetterLaunch.all_nodes">
-<span class="sig-name descname"><span class="pre">all_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_launch_service</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_foreign</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.all_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.launcher.BetterLaunch.all_nodes" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="better_launch.launcher.BetterLaunch.get_bl_nodes">
+<span class="sig-name descname"><span class="pre">get_bl_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_launch_service</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_foreign</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.get_bl_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.launcher.BetterLaunch.get_bl_nodes" title="Link to this definition"></a></dt>
 <dd><p>Returns a list of all nodes in the order they were added. Components will be added right after their composers. If a ROS2 launch service has been started it will be added at the very end.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1118,9 +1118,9 @@ Note that this will not appear in the logs!</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_launch.launcher.BetterLaunch.load_params">
-<span class="sig-name descname"><span class="pre">load_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_or_namespace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.load_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.launcher.BetterLaunch.load_params" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">load_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualifier</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.load_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.launcher.BetterLaunch.load_params" title="Link to this definition"></a></dt>
 <dd><p>Load parameters from a yaml file located through <a class="reference internal" href="better_launch_custom.html#better_launch.launcher.BetterLaunch.find" title="better_launch.launcher.BetterLaunch.find"><code class="xref py py-meth docutils literal notranslate"><span class="pre">find()</span></code></a>.</p>
-<p>If the config only contains a <cite>ros__parameters</cite> section the entire config is returned regardless of whether <cite>node_or_namespace</cite> was passed. Otherwise, if <cite>node_or_namespace</cite> is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</p>
+<p>If the config only contains a <cite>ros__parameters</cite> section the entire config is returned regardless of whether <cite>qualifier</cite> was passed. Otherwise, if <cite>qualifier</cite> is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</p>
 <p>The following wildcards are supported for parameter sections:
 * <cite>/**</cite>: matches any number of tokens, may be followed by additional tokens and a node name
 * <cite>/*</cite>: skips a single namespace token, or ignores the node’s name if at the end</p>
@@ -1135,7 +1135,7 @@ Note that this will not appear in the logs!</p>
 <li><p><strong>package</strong> (<em>str</em>) – A package to search for the config file. May be <cite>None</cite> (see <a class="reference internal" href="better_launch_custom.html#better_launch.launcher.BetterLaunch.find" title="better_launch.launcher.BetterLaunch.find"><code class="xref py py-meth docutils literal notranslate"><span class="pre">find()</span></code></a>).</p></li>
 <li><p><strong>configfile</strong> (<em>str</em>) – The name of the config file to locate.</p></li>
 <li><p><strong>subdir</strong> (<em>str</em><em>, </em><em>optional</em>) – A path fragment that the config file must be located in.</p></li>
-<li><p><strong>node_or_namespace</strong> (<em>str</em><em> | </em><a class="reference internal" href="better_launch.elements.html#better_launch.elements.node.Node" title="better_launch.elements.node.Node"><em>Node</em></a><em>, </em><em>optional</em>) – Used to specifiy which section of the config to return.</p></li>
+<li><p><strong>qualifier</strong> (<em>str</em><em> | </em><a class="reference internal" href="better_launch.elements.html#better_launch.elements.node.Node" title="better_launch.elements.node.Node"><em>Node</em></a><em>, </em><em>optional</em>) – Used to specifiy which section of the config to return.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1146,7 +1146,7 @@ Note that this will not appear in the logs!</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>ValueError</strong> – If the path cannot be resolved, if <cite>node_or_namespace</cite> is supplied and no matching section could be found, or if a substitution failed.</p></li>
+<li><p><strong>ValueError</strong> – If the path cannot be resolved, if <cite>qualifier</cite> is supplied and no matching section could be found, or if a substitution failed.</p></li>
 <li><p><strong>IOError</strong> – If the config file could not be read.</p></li>
 </ul>
 </dd>
@@ -1754,8 +1754,8 @@ Note that this will not appear in the logs!</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_launch.BetterLaunch.all_groups">
-<span class="sig-name descname"><span class="pre">all_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.all_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.BetterLaunch.all_groups" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="better_launch.BetterLaunch.get_groups">
+<span class="sig-name descname"><span class="pre">get_groups</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.get_groups"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.BetterLaunch.get_groups" title="Link to this definition"></a></dt>
 <dd><p>Returns a list of all in the order they were created.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -1768,8 +1768,8 @@ Note that this will not appear in the logs!</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="better_launch.BetterLaunch.all_nodes">
-<span class="sig-name descname"><span class="pre">all_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_launch_service</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_foreign</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.all_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.BetterLaunch.all_nodes" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="better_launch.BetterLaunch.get_bl_nodes">
+<span class="sig-name descname"><span class="pre">get_bl_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_launch_service</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_foreign</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.get_bl_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.BetterLaunch.get_bl_nodes" title="Link to this definition"></a></dt>
 <dd><p>Returns a list of all nodes in the order they were added. Components will be added right after their composers. If a ROS2 launch service has been started it will be added at the very end.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1998,9 +1998,9 @@ Note that this will not appear in the logs!</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="better_launch.BetterLaunch.load_params">
-<span class="sig-name descname"><span class="pre">load_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_or_namespace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.load_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.BetterLaunch.load_params" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">load_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualifier</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/better_launch/launcher.html#BetterLaunch.load_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#better_launch.BetterLaunch.load_params" title="Link to this definition"></a></dt>
 <dd><p>Load parameters from a yaml file located through <a class="reference internal" href="#better_launch.BetterLaunch.find" title="better_launch.BetterLaunch.find"><code class="xref py py-meth docutils literal notranslate"><span class="pre">find()</span></code></a>.</p>
-<p>If the config only contains a <cite>ros__parameters</cite> section the entire config is returned regardless of whether <cite>node_or_namespace</cite> was passed. Otherwise, if <cite>node_or_namespace</cite> is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</p>
+<p>If the config only contains a <cite>ros__parameters</cite> section the entire config is returned regardless of whether <cite>qualifier</cite> was passed. Otherwise, if <cite>qualifier</cite> is provided, the loaded config dict is searched for a matching section. If no matching section can be found a ValueError will be raised.</p>
 <p>The following wildcards are supported for parameter sections:
 * <cite>/**</cite>: matches any number of tokens, may be followed by additional tokens and a node name
 * <cite>/*</cite>: skips a single namespace token, or ignores the node’s name if at the end</p>
@@ -2015,7 +2015,7 @@ Note that this will not appear in the logs!</p>
 <li><p><strong>package</strong> (<em>str</em>) – A package to search for the config file. May be <cite>None</cite> (see <a class="reference internal" href="#better_launch.BetterLaunch.find" title="better_launch.BetterLaunch.find"><code class="xref py py-meth docutils literal notranslate"><span class="pre">find()</span></code></a>).</p></li>
 <li><p><strong>configfile</strong> (<em>str</em>) – The name of the config file to locate.</p></li>
 <li><p><strong>subdir</strong> (<em>str</em><em>, </em><em>optional</em>) – A path fragment that the config file must be located in.</p></li>
-<li><p><strong>node_or_namespace</strong> (<em>str</em><em> | </em><a class="reference internal" href="better_launch.elements.html#better_launch.elements.node.Node" title="better_launch.elements.node.Node"><em>Node</em></a><em>, </em><em>optional</em>) – Used to specifiy which section of the config to return.</p></li>
+<li><p><strong>qualifier</strong> (<em>str</em><em> | </em><a class="reference internal" href="better_launch.elements.html#better_launch.elements.node.Node" title="better_launch.elements.node.Node"><em>Node</em></a><em>, </em><em>optional</em>) – Used to specifiy which section of the config to return.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -2026,7 +2026,7 @@ Note that this will not appear in the logs!</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>ValueError</strong> – If the path cannot be resolved, if <cite>node_or_namespace</cite> is supplied and no matching section could be found, or if a substitution failed.</p></li>
+<li><p><strong>ValueError</strong> – If the path cannot be resolved, if <cite>qualifier</cite> is supplied and no matching section could be found, or if a substitution failed.</p></li>
 <li><p><strong>IOError</strong> – If the config file could not be read.</p></li>
 </ul>
 </dd>

@@ -24,13 +24,14 @@
   <depend>lifecycle_msgs</depend>
   <depend>composition_interfaces</depend>
   <depend>rclpy</depend>
+
   <depend>python3-click</depend>
+  <depend>python3-docstring-parser</depend>
+  <depend>python3-osrf-pycommon</depend>
   <depend>python3-yaml</depend>
   <depend>python3-setproctitle</depend>
-  <depend>python3-psutil</depend>
   <depend>python3-prompt-toolkit</depend>
-  <depend>python3-osrf-pycommon</depend>
-  <depend>python3-docstring-parser</depend>
+  <depend>python3-psutil</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

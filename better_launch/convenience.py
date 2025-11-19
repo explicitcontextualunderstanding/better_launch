@@ -9,8 +9,9 @@ __all__ = [
 ]
 
 
-from typing import Sequence
+from typing import Sequence, Any
 import subprocess
+import json
 
 from better_launch import BetterLaunch
 from better_launch.elements import Node
@@ -58,8 +59,8 @@ def rviz(
 
 
 def read_robot_description(
-    package: str = None,
-    description_file: str = None,
+    package: str,
+    description_file: str,
     subdir: str = None,
     *,
     xacro_args: list[str] = None,
@@ -70,9 +71,9 @@ def read_robot_description(
 
     Parameters
     ----------
-    package : str, optional
-        The package where the robot description file is located. May be `None` (see :py:meth:`BetterLaunch.find`)
-    description_file : str, optional
+    package : str
+        The package where the robot description file is located. May be `None` to use this launch file's package (see :py:meth:`BetterLaunch.find`).
+    description_file : str
         The name of the robot description file (URDF or XACRO).
     subdir : str, optional
         A path fragment the description file must be located in.
@@ -107,12 +108,14 @@ def read_robot_description(
         raise ValueError(f"Xacro failed ({e.returncode}): {e.output}") from e
 
 
-def joint_state_publisher(use_gui: bool, node_name: str = None, **kwargs) -> Node:
+def joint_state_publisher(
+    use_gui: bool = False, node_name: str = None, **kwargs
+) -> Node:
     """Starts a `joint_state_publisher` or `joint_state_publisher_gui` node.
 
     Parameters
     ----------
-    use_gui : bool
+    use_gui : bool, optional
         Whether to use the GUI version of the `joint_state_publisher`.
     node_name : str, optional
         The name of the node. If not provided the name of the executable will be used. Will be anonymized unless `anonymous=False` is passed.
@@ -145,8 +148,8 @@ def joint_state_publisher(use_gui: bool, node_name: str = None, **kwargs) -> Nod
 
 
 def robot_state_publisher(
-    package: str = None,
-    description_file: str = None,
+    package: str,
+    description_file: str,
     subdir: str = None,
     *,
     xacro_args: list[str] = None,
@@ -157,9 +160,9 @@ def robot_state_publisher(
 
     Parameters
     ----------
-    package : str, optional
-        The name of the package containing the robot description file.
-    description_file : str, optional
+    package : str
+        The name of the package containing the robot description file. May be `None` to use this launch file's package (see :py:meth:`BetterLaunch.find`).
+    description_file : str
         The name of the robot description for the robot. Typically a .sdf, .urdf or .xacro file.
     subdir : str, optional
         A path fragment the description file must be located in.
@@ -257,29 +260,294 @@ def static_transform_publisher(
         "static_transform_publisher",
         "gazebo_world_tf",
         cmd_args=args,
-        raw=True,
+        log_level=None,
     )
 
 
-def spawn_controller(controller: str, manager: str = "controller_manager") -> Node:
-    """Spawn the specified controller. 
+def spawn_controller_manager(
+    params: str | dict[str, Any] = None,
+    robot_description: str = None,
+    *,
+    remaps: dict[str, str] = None,
+    cmd_args: list[str] = None,
+    name: str = "controller_manager",
+) -> Node:
+    """Spawn a new controller manager.
+
+    Parameters
+    ----------
+    robot_description : str, optional
+        Convenience for remapping the robot description topic. On Humble or lower this can also be the contents as returned by :py:meth:`read_robot_description`, however, this is not recommended. If not provided, the description will be read from the `~/robot_description` topic.
+    params : str | dict[str, Any], optional
+        The controller manager config to use (typically named `controller.yaml`). If a string is passed it is considered as a path and loaded via :py:meth:`BetterLaunch.load_params`.
+    remaps : dict[str, str], optional
+        Topic remaps for the controller manager, e.g. for the `~/robot_description` topic it usually subscribes to.
+    cmd_args: list[str], optional
+        Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).
+    name : str, optional
+        The name the controller manager node should use. The rename is qualified and so won't affect controllers spawned later (see `this document <https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process>`_ for details). Note however that many nodes and CLI programs (e.g. `ros2 control`) expect the manager to be named `controller_manager` and won't work properly otherwise.
+
+    Returns
+    -------
+    Node
+        The node running the controller manager process.
+    """
+    bl = BetterLaunch.instance()
+
+    # In ROS2 there isn't a central parameter server anymore. However, each ROS2 process stores
+    # context object with all ros args passed to it. If the process creates new nodes their
+    # startup arguments are populated from this context object. This way the controller manager
+    # can store parameters for other controllers even if they are only spawned later.
+    # See this very helpful summary for details:
+    # https://github.com/ros-controls/ros2_control/issues/335
+
+    if params is None:
+        params = {}
+    elif isinstance(params, str):
+        # In theory one could pass the config and then change it before a controller is loaded, 
+        # but that seems debatable at best. If you truly want this, either pass the file path as
+        # a cmd arg, or keep the manager and controller configs separate and pass the later to 
+        # spawn_controller below.
+        # process_args.extend(["--param-file", params])
+        params = bl.load_params(None, params, matching_only=False)
+
+    if robot_description:
+        if robot_description.startswith("<?xml"):
+            if bl.ros_distro()[0].lower() >= "j":
+                raise ValueError("Passing a robot description by value is deprecated in ROS Jazzy and beyond")
+            params["robot_description"] = robot_description
+        else:
+            # Assume it's a topic
+            if remaps is None:
+                remaps = {}
+            remaps["robot_description"] = robot_description
+
+    else:
+        if bl.ros_distro()[0].lower() < "j":
+            bl.logger.warning("Note that in distros before Jazzy the controller_manager is subscribing to '~/robot_description' by default!")
+
+    return bl.node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        name=name,
+        remaps=remaps,
+        params=params,
+        cmd_args=cmd_args,
+        # Prevent renaming nodes spawned by the manager
+        # See https://control.ros.org/humble/doc/ros2_control/controller_manager/doc/userdoc.html#using-the-controller-manager-in-a-process
+        remap_qualifier="controller_manager",
+    )
+
+
+def spawn_controller(
+    controller: str,
+    params: str | list[str] | dict[str, Any] = None,
+    *,
+    remaps: dict[str, str] = None,
+    cmd_args: list[str] = None,
+    manager: str = "controller_manager",
+) -> None:  # TODO find a way to return an interactable object
+    """Spawn the specified controller.
+
+    Note that right now there is no way to directly interact with the loaded controller's node due to the limited API ROS2 provides. I will find a way...
 
     Parameters
     ----------
     controller : str
         The controller to spwawn.
-    manager : str
+    params : str | list[str] | dict[str, Any], optional
+        Additional parameters for the controller node. Can be a path to a ROS2 config, a list of paths, or a dict with the actual key-value pairs. Note that passing a dict is only 
+        supported for ROS Jazzy and newer.
+    remaps : dict[str, str], optional
+        Additional remaps specific to the controller. These will be qualified with the controller's name to avoid conflicts.
+    cmd_args: list[str], optional
+        Additional CLI arguments to pass to the spawner command (e.g. `--load-only`).
+    manager : str, optional
         The name of the controller_manager node.
-
-    Returns
-    -------
-    Node
-        The node running the spawner process.
     """
     bl = BetterLaunch.instance()
-    return bl.node(
-        package="controller_manager",
-        executable="spawner",
-        cmd_args=[controller, "--controller-manager", manager],
-        raw=True,
-    )
+    process_args = [controller, "--controller-manager", manager]
+
+    if cmd_args:
+        process_args.extend(cmd_args)
+
+    if isinstance(params, str):
+        params = bl.load_params(None, params)
+
+    if params:
+        if isinstance(params, dict):
+            if bl.ros_distro()[0].lower() < "j":
+                raise ValueError(
+                    "Passing controller params directly is only supported in Jazzy and newer"
+                )
+            
+            manager_node = bl.query_node(manager, include_foreign=True)
+
+            if not manager_node:
+                raise ValueError(f'Could not find controller manager "{manager}"')
+
+            # In theory we could pass --controller-ros-args to the spawner and let the spawner 
+            # handle these, but it unfortunately does some very naive string splitting which 
+            # messes up more complex arguments containing e.g. lists. 
+            manager_node.set_live_params(
+                {
+                    f"{controller}.node_options_args": [
+                        f"{key}:={json.dumps(val)}"
+                        for key, val in params.items()
+                    ]
+                }
+            )
+        elif isinstance(params, str):
+            # Usually we'd load the parameters here and pass them to the controller manager, 
+            # but this functionality only exists from jazzy onwards
+            process_args.extend(["--param-file", params])
+        elif isinstance(params, list):
+            for path in params:
+                process_args.extend(["--param-file", path])
+        else:
+            raise ValueError(f"Controller params of type {type(params)} not supported")
+
+    if remaps:
+        if bl.ros_distro()[0].lower() < "j":
+            raise ValueError(
+                "Passing controller params directly is only supported in Jazzy and newer"
+            )
+
+        for key, value in remaps.items():
+            # Qualify remaps to avoid accidental remaps for other controllers 
+            process_args.extend(
+                ["--controller-ros-args", f"-r {controller}:{key}:={value}"]
+            )
+
+    # This is NOT a node! Could also use the spawner python implementation directly, but that
+    # would just introduce another dependency with little benefit.
+    spawner = bl.find("controller_manager", "controller_manager/spawner")
+    bl.exec(["python3", spawner] + process_args)
+
+
+def record_topics(
+    topics: list[str] = None,
+    *,
+    bagfile: str = None,
+    camera_topic: str = "image_rect",
+    include_image_topics: bool = True,
+    include_compressed: bool = False,
+    max_bag_duration: int = 0,
+    max_bag_size: int = 0,
+    format: str = "mcap",
+):
+    """Record a rosbag. 
+    
+    Will record the specified topics, or automatically select topics based on currently available topics and arguments.
+
+    Parameters
+    ----------
+    bagfile : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default.
+    camera_image_topic : str, optional
+        If specified, only record camera topics if they contain this string. Assumes that the word "camera" appears in the topic path. If specified it is independent from `include_image_topics`. Ignored if topics are specified.
+    include_image_topics : bool, optional
+        Whether to include non-camera image topics. Ignored if topics are specified.
+    include_compressed : bool, optional
+        Whether to include compressed image topics. Ignored if topics are specified.
+    max_bag_duration : int, optional
+        Start recording a new bagfile after recording for X seconds.
+    max_bag_size : int, optional
+        Start recording a new bagfile after recording X MB.
+    format : str, optional
+        Rosbag format, should be mcap or sqlite3.
+    """
+    bl = BetterLaunch()
+
+    cmd = [
+        "ros2",
+        "bag",
+        "record",
+        "--storage",
+        format,
+        "--max-bag-duration",
+        max_bag_duration,
+        "--max-bag-size",
+        max_bag_size * 1024 * 1024,
+    ]
+
+    if bagfile:
+        cmd.extend(["-o", bagfile])
+
+    if topics:
+        cmd.extend(topics)
+    else:
+        topics: dict = bl.shared_node.get_topic_names_and_types()
+        for topic, types in topics.items():
+            if "sensor_msgs/msg/Image" in types:
+                if "camera" in topic:
+                    if camera_topic and camera_topic not in topic:
+                        continue
+
+                elif not include_image_topics:
+                    # Not the camera topic we want and we don't want other image topics either
+                    continue
+
+                if "/compressed/" in topic and not include_compressed:
+                    continue
+
+            cmd.append(topic)
+
+    bl.exec(cmd)
+
+
+def record_topics_from_file(
+    topic_file: str,
+    *,
+    bagfile: str = None,
+    max_bag_duration: int = 0,
+    max_bag_size: int = 0,
+    format: str = "mcap",
+):
+    """Record a rosbag. 
+    
+    Reads topics to record from a text-file. Empty lines and lines starting with "#" will be ignored.
+
+    Parameters
+    ----------
+    bagfile : str, optional
+        Where to record the bagfile. If not specified it will use the rosbag default.
+    topic_file : str, optional
+        Text file with topics to record. Lines starting with "#" will be ignored.
+    max_bag_duration : int, optional
+        Start recording a new bagfile after recording for X seconds.
+    max_bag_size : int, optional
+        Start recording a new bagfile after recording X MB.
+    format : str, optional
+        Rosbag format, should be mcap or sqlite3.
+    """
+    bl = BetterLaunch()
+
+    cmd = [
+        "ros2",
+        "bag",
+        "record",
+        "--storage",
+        format,
+        "--max-bag-duration",
+        max_bag_duration,
+        "--max-bag-size",
+        max_bag_size * 1024 * 1024,
+    ]
+
+    if bagfile:
+        cmd.extend(["-o", bagfile])
+
+    with open(topic_file) as f:
+        lines = f.readlines()
+    
+    topics = []
+    for line in lines:
+        line = line.trim()
+        if not line or line.startswith("#"):
+            continue
+
+        topics.append(line)
+
+    bl.logger.critical(f"{len(topics)} topics will be recorded")
+    bl.exec(cmd)

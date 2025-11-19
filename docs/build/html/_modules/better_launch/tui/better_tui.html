@@ -404,7 +404,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">footer_text</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 
             <span class="n">bl</span> <span class="o">=</span> <span class="n">BetterLaunch</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">nodes_snapshot</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">all_nodes</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nodes_snapshot</span> <span class="o">=</span> <span class="n">bl</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
                 <span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="n">include_foreign</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">manage_foreign_nodes</span><span class="p">,</span>

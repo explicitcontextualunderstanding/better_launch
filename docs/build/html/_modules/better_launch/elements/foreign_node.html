@@ -301,7 +301,7 @@
             <span class="k">elif</span> <span class="n">arg</span> <span class="o">==</span> <span class="s2">&quot;--params-file&quot;</span><span class="p">:</span>
                 <span class="n">skip</span> <span class="o">=</span> <span class="mi">1</span>
                 <span class="n">param_file</span> <span class="o">=</span> <span class="n">cmd_args</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
-                <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">bl</span><span class="o">.</span><span class="n">load_params</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">param_file</span><span class="p">,</span> <span class="n">node_or_namespace</span><span class="o">=</span><span class="n">node</span><span class="p">))</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">bl</span><span class="o">.</span><span class="n">load_params</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">param_file</span><span class="p">,</span> <span class="n">qualifier</span><span class="o">=</span><span class="n">node</span><span class="p">))</span>
 
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># No special handling</span>
@@ -331,7 +331,7 @@
     <span class="c1"># bl.query_node would iterate over all nodes every time</span>
     <span class="n">bln</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">n</span><span class="o">.</span><span class="n">fullname</span>
-        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bl</span><span class="o">.</span><span class="n">all_nodes</span><span class="p">(</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">bl</span><span class="o">.</span><span class="n">get_bl_nodes</span><span class="p">(</span>
             <span class="n">include_components</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_launch_service</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">include_foreign</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
     <span class="p">}</span>

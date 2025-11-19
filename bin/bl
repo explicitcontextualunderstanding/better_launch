@@ -12,13 +12,14 @@ bl <package> <launchfile> <launch-args>
 See --help and readme for further details.
 """
 
-from typing import Any, get_args
+from typing import Any
 import sys
 import os
 import ast
 import yaml
 from xml.etree import ElementTree
 import click
+from click.shell_completion import CompletionItem
 from docstring_parser import parse as parse_docstring
 
 from ament_index_python.packages import (
@@ -43,18 +44,21 @@ except ImportError:
 
 from better_launch import __version__
 from better_launch.utils.introspection import get_launchfunc_signature_from_file
+from better_launch.utils.click import (
+    Overrides,
+    get_click_options,
+    get_click_overrides,
+)
 from better_launch.utils.better_logging import Colormode
 
 
 class LaunchFile:
     @classmethod
-    def from_file(cls, package: str, filepath: str) -> "LaunchFile":
+    def from_file(cls, filepath: str) -> "LaunchFile":
         """Returns a LaunchFile subclass that can handle the provided launch file.
 
         Parameters
         ----------
-        package : str
-            The package the launch file lives in.
         filepath : str
             The path to the launch file.
 
@@ -72,7 +76,7 @@ class LaunchFile:
         # NOTE: by using __subclasses__ the order subclasses are defined in actually matters
         for launch_cls in LaunchFile.__subclasses__():
             try:
-                return launch_cls(package, filepath)
+                return launch_cls(filepath)
             except ValueError:
                 pass
 
@@ -80,8 +84,6 @@ class LaunchFile:
 
     def __init__(
         self,
-        package: str,
-        launchfile: str,
         filepath: str,
         params: list[click.Option],
         doc: str,
@@ -90,8 +92,6 @@ class LaunchFile:
 
         Parameters
         ----------
-        package : str
-            The package the launch file lives in.
         launchfile : str
             The filename of the launch file.
         filepath : str
@@ -101,98 +101,54 @@ class LaunchFile:
         doc : str
             A docstring describing the launch file, if any.
         """
-        self.package = package
-        self.launchfile = launchfile
         self.filepath = filepath
+        self.name = os.path.basename(filepath)
         self.params = params
-        self.doc = doc or f"{package}/{os.path.basename(launchfile)}"
+        self.doc = doc or filepath
 
     def run(self, ctx: click.Context, **kwargs) -> None:
-        """Execute this launch file.
-        """
+        """Execute this launch file."""
         raise NotImplementedError()
 
 
-class BetterLaunchFile(LaunchFile):
-    """This LaunchFile will handle better_launch launch files.
-    """
+class BetterLaunchPython(LaunchFile):
+    """This LaunchFile will handle better_launch python launch files."""
 
     @classmethod
-    def _get_launch_params_and_doc_bl(
+    def _get_launch_params_and_doc_bl_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith(".launch.py"):
             raise ValueError("Not a python file")
 
-        _, signature, doc = get_launchfunc_signature_from_file(filepath)
+        from better_launch.wrapper import _get_declared_args
+
+        _, signature, func_doc = get_launchfunc_signature_from_file(filepath)
         if not signature:
             raise ValueError("Not a better_launch launch file")
 
-        if doc:
-            parsed_doc = parse_docstring(doc)
-            launchfunc_doc = parsed_doc.short_description
+        launch_args = _get_declared_args(signature, func_doc)
+
+        overrides = Overrides()
+        options = get_click_options(launch_args)
+        options.extend(get_click_overrides(overrides, expose=True))
+
+        doc = ""
+        if func_doc:
+            parsed_doc = parse_docstring(func_doc)
+            doc = parsed_doc.short_description
             if parsed_doc.long_description:
-                launchfunc_doc += "\n\n" + parsed_doc.long_description
-            param_docstrings = {p.arg_name: p.description for p in parsed_doc.params}
-        else:
-            launchfunc_doc = ""
-            param_docstrings = {}
+                doc += "\n\n" + parsed_doc.long_description
 
-        options = []
-        for param in signature.parameters.values():
-            default = None
-            if param.default is not param.empty:
-                default = param.default
+        return options, doc
 
-            ptype = None
-            if default is None and param.annotation is not param.empty:
-                ptype = param.annotation
-                if isinstance(ptype, str):
-                    # If it's a primitive type we can parse it, otherwise ignore it
-                    ptype = getattr(__builtins__, ptype, None)
-
-            options.append(
-                click.Option(
-                    [f"--{param.name}"],
-                    type=ptype,
-                    default=default,
-                    show_default=True,
-                    help=param_docstrings.get(param.name, None),
-                )
-            )
-
-        # NOTE these should match the overrides in wrapper.py
-        options.extend([
-            click.Option(
-                ["--bl_ui_override"],
-                type=click.types.Choice(
-                    ["enable", "disable", "unset"], case_sensitive=False
-                ),
-                show_choices=True,
-                default="unset",
-                help="Override to enable/disable the terminal UI",
-            ),
-            click.Option(
-                ["--bl_colormode_override"],
-                type=click.types.Choice(
-                    get_args(Colormode), case_sensitive=False
-                ),
-                show_choices=True,
-                default=get_args(Colormode)[0],
-                help="Override the logging color mode",
-            )
-        ])
-
-        return options, launchfunc_doc
-
-    def __init__(self, package: str, filepath: str):
-        params, doc = BetterLaunchFile._get_launch_params_and_doc_bl(filepath)
-        launchfile = os.path.basename(filepath)
-        super().__init__(package, launchfile, filepath, params, doc)
+    def __init__(self, filepath: str):
+        params, doc = BetterLaunchPython._get_launch_params_and_doc_bl_python(filepath)
+        super().__init__(filepath, params, doc)
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Delegating to better_launch: {self.package}/{self.launchfile}, args={kwargs}",
+            f">> Delegating to better_launch: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -206,9 +162,51 @@ class BetterLaunchFile(LaunchFile):
         os.execvp("python3", [str(a) for a in args])
 
 
+class BetterLaunchToml(LaunchFile):
+    """This LaunchFile will handle better_launch TOML launch files."""
+
+    @classmethod
+    def _get_launch_params_and_doc_bl_toml(
+        cls, filepath: str
+    ) -> tuple[list[click.Option], str]:
+        if not filepath.lower().endswith(".launch.toml"):
+            raise ValueError("Not a toml file")
+
+        from better_launch.declarative.declarative import (
+            _get_toml_args,
+            load_toml,
+        )
+
+        toml = load_toml(filepath)
+        doc = toml.get("__comment__")
+        declared_args = _get_toml_args(toml)
+
+        overrides = Overrides()
+        options = get_click_options(declared_args)
+        options.extend(get_click_overrides(overrides, expose=True))
+
+        return options, doc
+
+    def __init__(self, filepath: str):
+        params, doc = BetterLaunchToml._get_launch_params_and_doc_bl_toml(filepath)
+        super().__init__(filepath, params, doc)
+
+    def run(self, ctx: click.Context, **kwargs) -> None:
+        print(
+            f">> Calling launch_toml: {self.name}, args={kwargs}",
+            flush=True,
+        )
+
+        from better_launch.declarative.declarative import launch_toml
+
+        # Since the toml files are not executable, we need something else to run them. We
+        # could create another script with a main function, but I don't think there's much
+        # of a point to this.
+        launch_toml(self.filepath, launch_args=kwargs)
+
+
 class Ros2LaunchFile(LaunchFile):
-    """A LaunchFile that can handle regular ROS2 launch files (python, XML, and YAML).
-    """
+    """A LaunchFile that can handle regular ROS2 launch files (python, XML, and YAML)."""
 
     @classmethod
     def _option_from_ros2_kwargs(cls, kwargs: dict[str, Any]) -> click.Option:
@@ -240,7 +238,7 @@ class Ros2LaunchFile(LaunchFile):
         )
 
     @classmethod
-    def _get_launch_params_and_doc_ros2(
+    def _get_launch_params_and_doc_ros2_python(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith(".launch.py"):
@@ -287,7 +285,7 @@ class Ros2LaunchFile(LaunchFile):
         return options, doc
 
     @classmethod
-    def _get_launch_params_and_doc_xml(
+    def _get_launch_params_and_doc_ros2_xml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith(".launch.xml"):
@@ -311,7 +309,7 @@ class Ros2LaunchFile(LaunchFile):
         return options, doc
 
     @classmethod
-    def _get_launch_params_and_doc_yaml(
+    def _get_launch_params_and_doc_ros2_yaml(
         cls, filepath: str
     ) -> tuple[list[click.Option], str]:
         if not filepath.lower().endswith((".launch.yml", ".launch.yaml")):
@@ -335,13 +333,11 @@ class Ros2LaunchFile(LaunchFile):
 
         return options, doc
 
-    def __init__(self, package: str, filepath: str):
-        launchfile = os.path.basename(filepath)
-
+    def __init__(self, filepath: str):
         for func in [
-            Ros2LaunchFile._get_launch_params_and_doc_ros2,
-            Ros2LaunchFile._get_launch_params_and_doc_xml,
-            Ros2LaunchFile._get_launch_params_and_doc_yaml,
+            Ros2LaunchFile._get_launch_params_and_doc_ros2_python,
+            Ros2LaunchFile._get_launch_params_and_doc_ros2_xml,
+            Ros2LaunchFile._get_launch_params_and_doc_ros2_yaml,
         ]:
             try:
                 params, doc = func(filepath)
@@ -351,11 +347,11 @@ class Ros2LaunchFile(LaunchFile):
         else:
             raise ValueError("Not a ROS2 launch file")
 
-        super().__init__(package, launchfile, filepath, params, doc)
+        super().__init__(filepath, params, doc)
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Delegating to ROS2 launch: {self.package}/{self.launchfile}, args={kwargs}",
+            f">> Delegating to ROS2 launch: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -368,21 +364,19 @@ class Ros2LaunchFile(LaunchFile):
 
 
 class ExecutableLaunchFile(LaunchFile):
-    """A LaunchFile that handles executable files.
-    """
+    """A LaunchFile that handles executable files."""
 
-    def __init__(self, package, filepath):
+    def __init__(self, filepath: str):
         if not os.access(filepath, os.X_OK):
             raise ValueError("Not executable")
 
-        launchfile = os.path.basename(filepath)
         params = []
         doc = None
-        super().__init__(package, launchfile, filepath, params, doc)
+        super().__init__(filepath, params, doc)
 
     def run(self, ctx: click.Context, **kwargs) -> None:
         print(
-            f">> Directly executing launch file: {self.package}/{self.launchfile}, args={kwargs}",
+            f">> Directly executing launch file: {self.name}, args={kwargs}",
             flush=True,
         )
 
@@ -391,6 +385,26 @@ class ExecutableLaunchFile(LaunchFile):
 
         # This does NOT return and will replace our executable with the new executable in the same process
         os.execvp(self.filepath, [str(a) for a in args])
+
+
+def get_launchfile_command(launchfile: LaunchFile, ctx: click.Context) -> click.Command:
+    # return a launchfile command with launch args as its Options
+    ctx.obj = {
+        "launchfile": launchfile,
+    }
+
+    cmd = click.Command(
+        launchfile.name,
+        callback=click.pass_context(launchfile.run),
+        params=launchfile.params,
+        help=launchfile.doc,
+    )
+
+    # In case the launch file accepts additional arguments. Unfortunately, in ROS2 this not only depends on the launch file, but also on the ROS2 node itself, specifically the allow_undeclared_parameters argument.
+    cmd.ignore_unknown_options = True
+    cmd.allow_extra_args = True
+
+    return cmd
 
 
 class LaunchfileSelectionCLI(click.MultiCommand):
@@ -426,27 +440,11 @@ class LaunchfileSelectionCLI(click.MultiCommand):
             return None
 
         try:
-            launchfile = LaunchFile.from_file(self._package, candidates[0])
+            launchfile = LaunchFile.from_file(candidates[0])
         except ValueError:
             return None
 
-        # return a launchfile command with launch args as its Options
-        ctx.obj = {
-            "launchfile": launchfile,
-        }
-
-        cmd = click.Command(
-            name,
-            callback=click.pass_context(launchfile.run),
-            params=launchfile.params,
-            help=launchfile.doc,
-        )
-
-        # In case the launch file accepts additional arguments. Unfortunately, in ROS2 this not only depends on the launch file, but also on the ROS2 node itself, specifically the allow_undeclared_parameters argument.
-        cmd.ignore_unknown_options = True
-        cmd.allow_extra_args = True
-
-        return cmd
+        return get_launchfile_command(launchfile, ctx)
 
     def _get_executables(self, include_launchfiles: bool = True) -> list[str]:
         # list executable files inside our package
@@ -471,8 +469,15 @@ class LaunchfileSelectionCLI(click.MultiCommand):
                     if os.access(path, os.X_OK):
                         executables.append(path)
                     elif include_launchfiles and (
-                        filename.endswith((".py", ".xml", ".yaml", ".yml"))
-                        and ".launch." in filename
+                        filename.endswith(
+                            (
+                                ".launch.py",
+                                ".launch.xml",
+                                ".launch.yaml",
+                                ".launch.yml",
+                                ".launch.toml",
+                            )
+                        )
                     ):
                         executables.append(path)
 
@@ -481,8 +486,7 @@ class LaunchfileSelectionCLI(click.MultiCommand):
 
 class PackageSelectionCLI(click.MultiCommand):
     def __init__(self, **kwargs):
-        """This subcommand will help in selecting a ROS package.
-        """
+        """This subcommand will help in selecting a ROS package."""
         options = [
             click.Option(
                 ["-v", "--version"],
@@ -516,16 +520,30 @@ In contrast to ROS2 launch, it also generates useful shell completion suggestion
         click.echo(__version__)
         ctx.exit()
 
+    def shell_complete(self, ctx: click.Context, incomplete: str):
+        if incomplete.startswith(".") or os.path.isabs(incomplete):
+            return [CompletionItem(incomplete, type="file")]
+
+        return super().shell_complete(ctx, incomplete)
+
     def list_commands(self, ctx: click.Context) -> list[str]:
         # list ROS2 packages
         return sorted(get_packages_with_prefixes().keys())
 
     def get_command(self, ctx: click.Context, name: str) -> click.Command:
-        # return a the command that will handle selecting launch files from the package
+        if name.startswith(".") or os.path.isabs(name):
+            if not os.path.isfile(name):
+                raise ValueError(f"{name} is not a file")
+
+            # The user has directly provided a file, assume it's a launchfile and run it directly
+            launchfile = LaunchFile.from_file(name)
+            return get_launchfile_command(launchfile, ctx)
+
         try:
+            # Return a command that will handle selecting launch files from the package
             return LaunchfileSelectionCLI(name)
         except Exception:
-            # The LaunchfileSelectionCLI will throw a PackageNotFoundError if colcon failed 
+            # The LaunchfileSelectionCLI will throw a PackageNotFoundError if colcon failed
             # to install a package, and ValueError if the package name is invalid
             return None
 

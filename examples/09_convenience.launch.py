@@ -9,7 +9,7 @@ def so_comfortable():
     """
     # Still need to instantiate BetterLaunch first
     bl = BetterLaunch()
-    
+
     convenience.static_transform_publisher("world", "better_launch", (1, 1, 1))
 
     # Note that the rviz2 executable is in fact not a ROS2 node. Under the hood the convenience

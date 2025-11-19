@@ -39,6 +39,8 @@ class Node(AbstractNode, LiveParamsMixin):
         respawn_delay: float = 0.0,
         use_shell: bool = False,
         raw: bool = False,
+        remap_qualifier: str = None,
+        qualify_all_remaps: bool = False,
     ):
         """An object used for starting a ROS node and capturing its output.
 
@@ -80,11 +82,10 @@ class Node(AbstractNode, LiveParamsMixin):
             If True, invoke the node executable via the system shell. While this gives access to the shell's builtins, this has the downside of running the node inside a "mystery program" which is platform and user dependent. Generally not advised.
         raw : bool, optional
             If True, don't treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.
-
-        Returns
-        -------
-        Node
-            The node object wrapping the node process.
+        remap_qualifier : str, optional
+            Additional qualifier that will precede the node's `__ns` and `__name` remap rules. Should be the original name of the node (i.e. whatever its default name is) and can be qualified with a namespace. Useful to prevent multiple nodes with the same name when a process can have more than one node (e.g. `controller_manager`). See `this ROS2 design doc <https://design.ros2.org/articles/static_remapping.html#how-the-syntax-works`_ for more information.
+        qualify_all_remaps : bool, optional
+            If True, apply the `remap_qualifier` to all remaps that are not already qualified.
         """
         super().__init__(
             package, executable, name, namespace, remaps, params, output=output
@@ -103,6 +104,8 @@ class Node(AbstractNode, LiveParamsMixin):
         self._process: subprocess.Popen = None
         self._on_exit_callback = on_exit
         self.raw = raw
+        self.remap_qualifier = remap_qualifier
+        self.qualify_all_remaps = qualify_all_remaps
 
     @property
     def pid(self) -> int:
@@ -136,7 +139,8 @@ class Node(AbstractNode, LiveParamsMixin):
         proc = self._process
         if proc:
             try:
-                proc.wait(timeout)
+                # Seems to work here despite setpgrp?
+                return proc.wait(timeout)
             except subprocess.TimeoutExpired as e:
                 raise TimeoutError from e
 
@@ -166,6 +170,9 @@ class Node(AbstractNode, LiveParamsMixin):
             if not self.raw:
                 final_cmd += ["--ros-args"]
 
+                if self.node_log_level is not None:
+                    final_cmd += ["--log-level", self.node_log_level]
+
                 # Attach node parameters
                 for key, value in self._flat_params().items():
                     # Make sure the values are parseable for ROS
@@ -173,12 +180,22 @@ class Node(AbstractNode, LiveParamsMixin):
 
                 # Special args and remaps
                 # launch_ros/actions/node.py:206
-                for src, dst in self._ros_args().items():
-                    # launch_ros/actions/node.py:481
-                    final_cmd.extend(["-r", f"{src}:={dst}"])
 
-                if self.node_log_level is not None:
-                    final_cmd += ["--log-level", self.node_log_level]
+                # Qualifier to create node-specific remaps
+                qualifier = ""
+                if self.remap_qualifier:
+                    qualifier = self.remap_qualifier
+                    if not qualifier.endswith(":"):
+                        qualifier += ":"
+                
+                for src, dst in self._ros_args().items():
+                    if qualifier:
+                        if src in ("__ns", "__node", "__name"):
+                            src = qualifier + src
+                        elif self.qualify_all_remaps and ":" not in src:
+                            src = qualifier + src
+                    
+                    final_cmd.extend(["-r", f"{src}:={dst}"])
 
             # If an env is specified ROS2 lets it completely replace the host env. We cover this
             # through an additional flag, as often you just want to make certain overrides.
@@ -205,6 +222,8 @@ class Node(AbstractNode, LiveParamsMixin):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                # start in separate process group so it doesn't react to our sigint immediately
+                preexec_fn=os.setpgrp,
             )
 
             # Watch the process for output and react when it terminates
@@ -313,7 +332,7 @@ class Node(AbstractNode, LiveParamsMixin):
                 if err_bundle:
                     log_bundle(err_bundle, logging.ERROR)
 
-            returncode = process.wait()
+            returncode = process.poll()
 
             if returncode == 0:
                 self.logger.warning("Process has finished cleanly")
@@ -321,6 +340,8 @@ class Node(AbstractNode, LiveParamsMixin):
                 self.logger.critical(f"Process has died with exit code {returncode}")
 
         finally:
+            self.logger.info(f"Terminated: {self}")
+
             if self._on_exit_callback:
                 self._on_exit_callback()
 
@@ -330,7 +351,7 @@ class Node(AbstractNode, LiveParamsMixin):
             if not BetterLaunch.instance().is_shutdown and (
                 self.max_respawns < 0 or self._respawn_retries < self.max_respawns
             ):
-                self.logger.info(f"Restarting {self.name} after unexpected shutdown")
+                self.logger.info(f"Restarting {repr(self)} after unexpected shutdown")
 
                 self._respawn_retries += 1
                 if self.respawn_delay > 0.0:
@@ -364,7 +385,9 @@ class Node(AbstractNode, LiveParamsMixin):
             return
 
         try:
-            self._process.wait(timeout)
+            # Since introducing setpgrp above _process.wait hangs indefinitely
+            #self._process.wait(timeout)
+            os.waitpid(self.pid, 0)
         except subprocess.TimeoutExpired:
             raise TimeoutError("Node did not shutdown within the specified timeout")
 
@@ -377,26 +400,27 @@ class Node(AbstractNode, LiveParamsMixin):
         if not self.is_running:
             # the process is done or is cleaning up, no need to signal
             self.logger.info(
-                f"'{signame}' not set to '{self.name}' because it is already closing"
+                f"{signame} not sent to {repr(self)} because it is already closing"
             )
             return
 
         if platform.system() == "Windows" and signum == signal.SIGINT:
             # Windows doesn't handle sigterm correctly
             self.logger.warning(
-                f"'SIGINT' sent to process[{self.name}] not supported on Windows, escalating to 'SIGTERM'"
+                "SIGINT not supported on Windows, escalating to 'SIGTERM'"
             )
 
             signum = signal.SIGTERM
             signame = signal.SIGTERM.name
 
-        self.logger.info(f"Sending signal '{signame}' to process [{self.name}]")
+        self.logger.info(f"Sending signal {signame} to {repr(self)}")
 
         try:
+            #os.killpg(self.pid, signum)
             self._process.send_signal(signum)
         except ProcessLookupError:
             self.logger.info(
-                f"'{signame}' not sent to '{self.name}' because it has closed already"
+                f"{signame} not sent to {repr(self)} because it has closed already"
             )
 
     def _on_shutdown(self) -> None:
@@ -420,7 +444,7 @@ class Node(AbstractNode, LiveParamsMixin):
         return (
             info
             + f"""
-<bold>Process</bold>
+\x1b[1mProcess\x1b[0m
   PID:       {self.pid}
   Respawns:  {self._respawn_retries} / {self.max_respawns}
   Cmd Args:  {self.cmd_args}
@@ -429,4 +453,4 @@ class Node(AbstractNode, LiveParamsMixin):
         )
 
     def __repr__(self) -> str:
-        return f"{self.name} [node {self.node_id}, cmd {self.package}/{self.executable}, pid {self.pid}, running {self.is_running}]"
+        return f"Node [name={self.name}, node={self.package}:{self.executable}, pid={self.pid}]"

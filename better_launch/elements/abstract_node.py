@@ -115,7 +115,7 @@ class AbstractNode:
             if not bl:
                 return self._params
 
-            self._params = bl.load_params(None, self._params, node_or_namespace=self)
+            self._params = bl.load_params(None, self._params, qualifier=self)
 
         return self._params
 
@@ -388,9 +388,10 @@ class AbstractNode:
         )
 
     def _get_info_section_general(self) -> str:
+        status = "\x1b[92malive\x1b[0m" if self.is_running else "\x1b[91mdead\x1b[0m"
         return f"""\
-<bold>{self.name} ({self.__class__.__name__})</bold>
-  Status:    {'<green>alive</green>' if self.is_running else '<red>dead</red>'}
+\x1b[1m{self.name} ({self.__class__.__name__})\x1b[0m
+  Status:    {status}
   Lifecycle: {self.lifecycle.current_stage.name if self.lifecycle else 'None'}
   Package:   {self.package}
   Command:   {self.executable}
@@ -399,7 +400,7 @@ class AbstractNode:
 
     def _get_info_section_config(self) -> str:
         return f"""\
-<bold>Config</bold>
+\x1b[1mConfig\x1b[0m
   Node Args: {self.params}
   Remaps:    {self.remaps}
 """
@@ -441,12 +442,13 @@ class AbstractNode:
             subs_text = ""
             services_text = ""
 
+        # TODO don't use html
         return f"""\
-<bold>Publishers:</bold> {pubs_text}
+\x1b[1mPublishers:\x1b[0m {pubs_text}
 
-<bold>Subscriptions:</bold> {subs_text}
+\x1b[1mSubscriptions:\x1b[0m {subs_text}
 
-<bold>Services:</bold> {services_text}
+\x1b[1mServices:\x1b[0m {services_text}
 """
 
     def __repr__(self):
