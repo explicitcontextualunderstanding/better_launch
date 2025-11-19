@@ -195,9 +195,6 @@ class Node(AbstractNode, LiveParamsMixin):
                     
                     final_cmd.extend(["-r", f"{src}:={dst}"])
 
-                if self.node_log_level is not None:
-                    final_cmd += ["--log-level", self.node_log_level]
-
             # If an env is specified ROS2 lets it completely replace the host env. We cover this
             # through an additional flag, as often you just want to make certain overrides.
             # launch/descriptions/executable.py:199
