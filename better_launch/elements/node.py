@@ -1,8 +1,8 @@
+from typing import Any, Callable, Iterable
 import os
 import platform
 import signal
 import traceback
-from typing import Any, Callable
 import time
 import re
 import logging
@@ -33,7 +33,7 @@ class Node(AbstractNode, LiveParamsMixin):
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         on_exit: Callable = None,
         max_respawns: int = 0,
         respawn_delay: float = 0.0,
@@ -66,7 +66,7 @@ class Node(AbstractNode, LiveParamsMixin):
             If True, the node process' env will not be inherited from the parent process and only those passed via `env` will be used. Be aware that this can result in many common things to not work anymore since e.g. keys like *PATH* will be missing.
         log_level : int, optional
             The minimum severity a logged message from this node must have in order to be published. This will be added to the cmd_args unless it is None.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
         anonymous : bool, optional
             If True, the node name will be appended with a unique suffix to avoid name conflicts.

@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generator, Literal, TYPE_CHECKING
+from typing import Any, Callable, Generator, Iterable, Literal, TYPE_CHECKING
 import importlib
 import sys
 import os
@@ -1372,7 +1372,7 @@ Takeoff in 3... 2... 1...
         env: dict[str, str] = None,
         isolate_env: bool = False,
         log_level: int = logging.INFO,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         anonymous: bool = False,
         hidden: bool = False,
         on_exit: Callable = None,
@@ -1382,7 +1382,7 @@ Takeoff in 3... 2... 1...
         autostart_process: bool = True,
         ros_waittime: float = 3.0,
         lifecycle_waittime: float = 0.01,
-        lifecycle_target: LifecycleStage = LifecycleStage.ACTIVE,
+        lifecycle_target: LifecycleStage | str = LifecycleStage.ACTIVE,
         raw: bool = False,
         remap_qualifier: str = None,
         qualify_all_remaps: bool = False,
@@ -1413,7 +1413,7 @@ Takeoff in 3... 2... 1...
             If True, the node process' env will not be inherited from the parent process and only those passed via `env` will be used. Be aware that this can result in many common things to not work anymore since e.g. keys like *PATH* will be missing.
         log_level : int, optional
             The minimum severity a logged message from this node must have in order to be published. This will be added to the cmd_args unless it is None.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
         anonymous : bool, optional
             If True, the node name will be appended with a unique suffix to avoid name conflicts.
@@ -1433,7 +1433,7 @@ Takeoff in 3... 2... 1...
             How long to wait for the node to register with ROS. This should cover the time between the process starting and the node initializing itself. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
         lifecycle_waittime : float, optional
             How long to wait for the node's lifecycle management to come up. This should cover the time between the node initializing itself (see `ros_waittime`) and creating its additional topics and services. While neglible on modern computers, slower devices and embedded systems may experience a noticable delay here. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
-        lifecycle_target : LifecycleStage, optional
+        lifecycle_target : LifecycleStage | str, optional
             The lifecycle stage to bring the node into after starting. Has no effect if `autostart_process` is False or if the node does not appear to be a lifecycle node after waiting `ros_waittime + lifecycle_waittime`.
         raw : bool, optional
             If True, don't treat the executable as a ROS2 node and avoid passing it any command line arguments except those specified.
@@ -1496,6 +1496,7 @@ Takeoff in 3... 2... 1...
             if ros_waittime is not None and node.is_ros2_connected(ros_waittime):
                 if (
                     lifecycle_target not in (None, LifecycleStage.PRISTINE)
+                    and str(lifecycle_target).upper() != "PRISTINE"
                     and lifecycle_waittime is not None
                     and node.is_lifecycle_node(lifecycle_waittime)
                 ):
@@ -1516,7 +1517,7 @@ Takeoff in 3... 2... 1...
         hidden: bool = False,
         autostart_process: bool = True,
         ros_waittime: float = 3.0,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ) -> Generator[Composer, None, None]:
         """Creates a composer node which can be used to load :py:class:`Component`s. Components can be instantiated directly, or preferably via :py:meth:`component`. Only components can reside within a composer.
 
@@ -1552,7 +1553,7 @@ Takeoff in 3... 2... 1...
             If True, start the composer process before returning from this function. Note that setting this to False for a composer will make it unusable as a context object, since you won't be able to load any components.
         ros_waittime : float, optional
             How long to wait for the composer to register with ROS. This should cover the time between the process starting and the composer initializing itself. Set negative to wait indefinitely. Will do nothing if `autostart_process` is False.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
 
         Yields
@@ -1668,8 +1669,8 @@ Takeoff in 3... 2... 1...
         use_intra_process_comms: bool = True,
         ros_waittime: float = 3.0,
         lifecycle_waittime: float = 0.01,
-        lifecycle_target: LifecycleStage = LifecycleStage.ACTIVE,
-        output: LogSink | set[LogSink] = "screen",
+        lifecycle_target: LifecycleStage | str = LifecycleStage.ACTIVE,
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         **extra_composer_args: dict[str, Any],
     ) -> Component:
         """Create a component and load it into an existing :py:meth:`compose` context.
@@ -1698,9 +1699,9 @@ Takeoff in 3... 2... 1...
             How long to wait for the component to register with ROS. This should cover the time between the process starting and the component initializing itself. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
         lifecycle_waittime : float, optional
             How long to wait for the component's lifecycle management to come up. This should cover the time between the component initializing itself (see `ros_waittime`) and creating its additional topics and services. While neglible on modern computers, slower devices and embedded systems may experience a noticable delay here. Set negative to wait indefinitely. Set to None to avoid the check entirely. Will do nothing if `autostart_process` is False.
-        lifecycle_target : LifecycleStage, optional
+        lifecycle_target : LifecycleStage | str, optional
             The lifecycle stage to bring the component into after starting. Has no effect if `autostart_process` is False or if the component does not appear to be a lifecycle component after waiting `ros_waittime + lifecycle_waittime`.
-        output : LogSink | set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             Determines if and where this node's output should be directed. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
 
         Returns
@@ -1749,6 +1750,7 @@ Takeoff in 3... 2... 1...
         if ros_waittime is not None and comp.is_ros2_connected(ros_waittime):
             if (
                 lifecycle_target not in (None, LifecycleStage.PRISTINE)
+                and str(lifecycle_target).upper() != "PRISTINE"
                 and lifecycle_waittime is not None
                 and comp.is_lifecycle_node(lifecycle_waittime)
             ):
@@ -1840,7 +1842,7 @@ Takeoff in 3... 2... 1...
         self,
         name: str = "LaunchService",
         launchservice_args: list[str] = None,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
         start_immediately: bool = True,
     ) -> Ros2LaunchWrapper:
         """Create or retrieve a manager object that can be used for queueing ROS2 launch actions.
@@ -1857,7 +1859,7 @@ Takeoff in 3... 2... 1...
             The name used to identify the process and its logger.
         launchservice_args : list[str], optional
             Additional launch arguments to pass to the ROS2 launch service. These will end up in :py:meth:`launch.LaunchContext.argv`.
-        output : LogSink  |  set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             How log output from the launch service should be handled. This will also include the output from all nodes launched by this launch service. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
         start_immediately : bool, optional
             If True, the ROS2 launch service process is started immediately.

@@ -17,12 +17,19 @@ ROSLOG_PATTERN_ROS = "%%{severity}%%{time}%%{message}"
 ROSLOG_PATTERN_BL = r"%%(?P<levelname>\w+)%%(?P<created>[\d.]+)%%(?P<msg>[\s\S]*)"
 
 
-class Colormode(enum.Enum):
-    DEFAULT = enum.auto()
-    SEVERITY = enum.auto()
-    SOURCE = enum.auto()
-    NONE = enum.auto()
-    RAINBOW = enum.auto()
+class LogSink(enum.IntEnum):
+    SCREEN = 0
+    LOG = 1
+    OWN_LOG = 2
+    NONE = 3
+
+
+class Colormode(enum.IntEnum):
+    DEFAULT = 0
+    SEVERITY = 1
+    SOURCE = 2
+    NONE = 3
+    RAINBOW = 4
 
 
 default_log_colormap = {
@@ -274,24 +281,26 @@ class StubbornHandler(logging.Handler):
         return self.actual_handler.format(record)
 
 
-LogSink = Literal["screen", "log", "own_log", "none"]
-
-
 def configure_logger(
     logger: logging.Logger,
-    config: LogSink | Iterable[LogSink] = None,
+    output: LogSink | Iterable[LogSink] | Iterable[str] | str = None,
     screen_formatter: logging.Formatter = None,
     log_formatter: logging.Formatter = None,
 ) -> None:
-    if not config:
-        config = {"screen"}
-    elif isinstance(config, str):
-        config = {config}
-    else:
-        config = set(config)
+    if output:
+        if isinstance(output, Iterable) and not isinstance(output, str):
+            output = [output]
 
-    for sink in config:
-        if sink == "screen":
+        for idx, sink in output:
+            if isinstance(sink, str):
+                output[idx] = LogSink[output.upper()]
+        
+        output = set(output)
+    else:
+        output = {LogSink.SCREEN}
+
+    for sink in output:
+        if sink == LogSink.SCREEN:
             screen_handler = roslog.launch_config.get_screen_handler()
             if screen_handler not in logger.handlers:
                 if not screen_formatter:
@@ -300,7 +309,7 @@ def configure_logger(
                 screen_handler.setFormatterFor(logger, screen_formatter)
                 logger.addHandler(screen_handler)
 
-        elif sink == "log":
+        elif sink == LogSink.LOG:
             common_log_handler = roslog.launch_config.get_log_file_handler()
             if common_log_handler not in logger.handlers:
                 if not log_formatter:
@@ -309,7 +318,7 @@ def configure_logger(
                 common_log_handler.setFormatterFor(logger, log_formatter)
                 logger.addHandler(common_log_handler)
 
-        elif sink == "own_log":
+        elif sink == LogSink.OWN_LOG:
             # Make sure the logfile is not in /
             logfile = logger.name.strip("/").replace("/", os.path.sep) + ".log"
 

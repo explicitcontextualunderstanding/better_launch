@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Iterable
 import os
 import platform
 import signal
@@ -145,7 +145,7 @@ class Ros2LaunchWrapper(AbstractNode):
         self,
         name: str = "LaunchService",
         launchservice_args: list[str] = None,
-        output: LogSink | set[LogSink] = "screen",
+        output: LogSink | Iterable[LogSink] | Iterable[str] | str = LogSink.SCREEN,
     ):
         """Hosts a separate process running a ROS2 `LaunchService` instance (the main entrypoint of the ROS2 launch system).
 
@@ -163,7 +163,7 @@ class Ros2LaunchWrapper(AbstractNode):
             The name that will be used for the logger and the child process.
         launchservice_args : list[str], optional
             Additional arguments to pass to the ROS2 launch service. These will show up in the ROS2 `LaunchContext`.
-        output : LogSink  |  set[LogSink], optional
+        output : LogSink | Iterable[LogSink] | Iterable[str] | str, optional
             How log output from the launch service should be handled. This will also include the output from all nodes launched by this launch service. Common choices are `screen` to print to terminal, `log` to write to a common log file, `own_log` to write to a node-specific log file, and `none` to not write any output anywhere. See :py:meth:`configure_logger` for details.
         """
         super().__init__(

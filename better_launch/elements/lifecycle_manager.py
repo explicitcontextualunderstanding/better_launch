@@ -178,14 +178,14 @@ class LifecycleManager:
         """
         return self._current_ros_state
 
-    def transition(self, target_stage: LifecycleStage) -> bool:
+    def transition(self, target_stage: LifecycleStage | str) -> bool:
         """Transition the managed node into the target lifecycle stage. Does nothing if the node is already in the desired stage. 
         
         Note that you **don't** have to do step-by-step transitions - simply specify the stage you want the node to end up in and it will go through all the intermediate steps (assuming a path exists).
 
         Parameters
         ----------
-        target_stage : LifecycleStage
+        target_stage : LifecycleStage | str
             The lifecycle stage you want the node to end up in.
 
         Returns
@@ -198,6 +198,9 @@ class LifecycleManager:
         ValueError
             If no path to the target stage could be found.
         """
+        if isinstance(target_stage, str):
+            target_stage = LifecycleStage[target_stage.upper()]
+
         if target_stage == self.current_stage:
             return True
 

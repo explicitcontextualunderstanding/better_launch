@@ -250,9 +250,6 @@ def launch_toml(
         pass
     #elif toml_format == some_previous_version: ...
 
-    # TODO establish and verify argument precedence:
-    # CLI > env > launchfile > default
-
     if eval_mode is None:
         eval_mode = toml.get("bl_eval_mode", "literal")
 
