@@ -18,7 +18,7 @@ The preferred way to contribute to *better_launch* is to fork the
 
 3. Clone this copy to your local disk:
 
-        $ git clone git@github.com:dfki-rc/better_launch.git
+        $ git clone git@github.com:<your_github_account>/better_launch.git
 
 4. Create a branch to hold your changes:
 
@@ -27,7 +27,7 @@ The preferred way to contribute to *better_launch* is to fork the
     and start making changes. Never work in the ``master`` branch!
 
 5. Work on this copy, on your computer, using Git to do the version
-   control. When you're done editing, do::
+   control. When you're done editing, do:
 
         $ git add modified_files
         $ git commit
@@ -36,9 +36,8 @@ The preferred way to contribute to *better_launch* is to fork the
 
        $ git push -u origin my-feature
 
-Finally, go to the web page of the your fork of the bolero repo,
-and click 'Pull request' to send your changes to the maintainers for review.
-request.
+6. Finally, go to the web page of your fork of the better_launch repo,
+   and click 'Pull request' to send your changes to the maintainers for a review.
 
 ## Merge Policy
 Developers have to submit pull requests. Those will be reviewed by at least
