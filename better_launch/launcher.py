@@ -1836,7 +1836,7 @@ Takeoff in 3... 2... 1...
         )
         self.ros2_actions(ros2_include)
 
-    def _to_ros2_yaml(self, val: Any) -> str:
+    def _to_ros2_yaml(self, val: Any) -> Any:
         """Convert a value to a YAML string suitable for ROS2 launch arguments.
         
         Optimized for performance on embedded platforms (Jetson Orin Nano).
@@ -1855,6 +1855,14 @@ Takeoff in 3... 2... 1...
         elif t is str:
             return val
             
+        # Check for ROS2 Substitution objects (e.g. LaunchConfiguration)
+        # We pass these through unchanged as ROS2 handles them
+        # We check for the base class or if it looks like a substitution
+        if hasattr(val, 'perform') or hasattr(val, 'describe'): 
+             # Duck typing for Substitution to avoid importing launch everywhere if not needed
+             # or we could import Substitution inside the method
+             return val
+
         # Fallback to JSON serialization for containers (list, dict)
         # JSON is valid YAML and safer/cleaner than yaml.dump for these
         import json
