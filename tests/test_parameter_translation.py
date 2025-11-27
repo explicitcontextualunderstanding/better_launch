@@ -103,19 +103,17 @@ class TestParameterTranslation:
         # Call _include_ros2_launchfile
         bl._include_ros2_launchfile("/dummy/path.launch.py", my_arg=input_val)
         
-        # Verify ros2_actions was called
-        assert bl.ros2_actions.called
-        
-        # Inspect the IncludeLaunchDescription object passed to ros2_actions
-        ros2_include = bl.ros2_actions.call_args[0][0]
+        # Inspect the IncludeLaunchDescription constructor call
         from launch.actions import IncludeLaunchDescription
-        # Since we mocked launch.actions, IncludeLaunchDescription is a MagicMock
-        # We can check if it was created from that mock
-        # assert isinstance(ros2_include, IncludeLaunchDescription) or ros2_include.__class__.__name__ == 'MagicMock'
-        # Simply checking it's a mock is enough for this unit test
-        assert hasattr(ros2_include, 'launch_arguments')
         
-        # Check launch_arguments
-        # launch_arguments is a list of tuples: [('my_arg', 'expected_output')]
-        launch_args = dict(ros2_include.launch_arguments)
-        assert launch_args['my_arg'] == expected_output
+        # Verify constructor was called
+        assert IncludeLaunchDescription.called
+        
+        # Get the arguments passed to the constructor
+        # call_args is (args, kwargs)
+        _, kwargs = IncludeLaunchDescription.call_args
+        launch_arguments = kwargs.get('launch_arguments')
+        
+        # launch_arguments should be a list of tuples
+        launch_args_dict = dict(launch_arguments)
+        assert launch_args_dict['my_arg'] == expected_output
