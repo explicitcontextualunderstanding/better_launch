@@ -1830,11 +1830,35 @@ Takeoff in 3... 2... 1...
             AnyLaunchDescriptionSource(file_path),
             launch_arguments=[
                 # ROS2 can handle only tuples of strings and strings/substitutions here...
-                (key, str(val) if val is not None else "")
+                (key, self._to_ros2_yaml(val))
                 for key, val in kwargs.items()
             ],
         )
         self.ros2_actions(ros2_include)
+
+    def _to_ros2_yaml(self, val: Any) -> str:
+        """Convert a value to a YAML string suitable for ROS2 launch arguments.
+        
+        Optimized for performance on embedded platforms (Jetson Orin Nano).
+        Uses direct type dispatch for primitives to avoid json.dumps overhead.
+        """
+        if val is None:
+            return ""
+        
+        # Fast path for primitives using direct type checking
+        # This avoids the overhead of the JSON encoder for the 90% case
+        t = type(val)
+        if t is bool:
+            return "true" if val else "false"
+        elif t is int or t is float:
+            return str(val)
+        elif t is str:
+            return val
+            
+        # Fallback to JSON serialization for containers (list, dict)
+        # JSON is valid YAML and safer/cleaner than yaml.dump for these
+        import json
+        return json.dumps(val)
 
     def ros2_launch_service(
         self,
