@@ -72,3 +72,48 @@ class TestParameterTranslation:
         # If we pass '"foo"', it receives '"foo"'.
         assert bl._to_ros2_yaml("foo") == "foo"
         assert bl._to_ros2_yaml("foo bar") == "foo bar"
+
+    def test_non_serializable(self, bl):
+        """Test that non-serializable types raise ValueError."""
+        class CustomObj:
+            pass
+        
+        with pytest.raises(ValueError, match="Failed to serialize launch argument"):
+            bl._to_ros2_yaml(CustomObj())
+
+    @pytest.mark.parametrize("input_val, expected_output", [
+        (True, "true"),
+        ({"a": 1}, '{"a": 1}'),
+    ])
+    def test_include_calls_translation(self, input_val, expected_output):
+        """Verify that _include_ros2_launchfile calls _to_ros2_yaml."""
+        # We need a real BetterLaunch instance (or close to it) to test the call chain
+        # but we can mock the internal methods
+        bl = BetterLaunch()
+        
+        # Mock _to_ros2_yaml to verify it's called
+        # We wrap the real method to check return values too if needed, 
+        # but here we just want to ensure it's invoked.
+        # However, since we want to test the integration, let's mock ros2_actions
+        # and see what arguments it receives.
+        
+        bl.ros2_actions = MagicMock()
+        bl.find = MagicMock(return_value="/dummy/path.launch.py")
+        
+        # Call _include_ros2_launchfile
+        bl._include_ros2_launchfile("/dummy/path.launch.py", my_arg=input_val)
+        
+        # Verify ros2_actions was called
+        assert bl.ros2_actions.called
+        
+        # Inspect the IncludeLaunchDescription object passed to ros2_actions
+        ros2_include = bl.ros2_actions.call_args[0][0]
+        from launch.actions import IncludeLaunchDescription
+        # Since we mocked launch.actions, IncludeLaunchDescription is a MagicMock
+        # We can check if it was created from that mock
+        assert isinstance(ros2_include, IncludeLaunchDescription) or ros2_include.__class__.__name__ == 'MagicMock'
+        
+        # Check launch_arguments
+        # launch_arguments is a list of tuples: [('my_arg', 'expected_output')]
+        launch_args = dict(ros2_include.launch_arguments)
+        assert launch_args['my_arg'] == expected_output

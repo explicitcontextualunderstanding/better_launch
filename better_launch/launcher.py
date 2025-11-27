@@ -1858,7 +1858,12 @@ Takeoff in 3... 2... 1...
         # Fallback to JSON serialization for containers (list, dict)
         # JSON is valid YAML and safer/cleaner than yaml.dump for these
         import json
-        return json.dumps(val)
+        try:
+            return json.dumps(val)
+        except TypeError as e:
+            # Fallback for non-serializable types (e.g. custom objects)
+            # We try str() but warn/raise because it might not be valid YAML
+            raise ValueError(f"Failed to serialize launch argument '{val}' of type '{type(val).__name__}': {e}") from e
 
     def ros2_launch_service(
         self,
