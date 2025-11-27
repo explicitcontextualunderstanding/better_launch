@@ -130,3 +130,23 @@ class TestParameterTranslation:
         assert launch_args['arg1'] == "true"
         assert launch_args['arg2'] is sub
         assert launch_args['arg3'] == "string"
+
+    def test_special_floats(self, bl):
+        """Test handling of NaN and Infinity."""
+        assert bl._to_ros2_yaml(float('nan')) == ".NaN"
+        assert bl._to_ros2_yaml(float('inf')) == ".inf"
+        assert bl._to_ros2_yaml(float('-inf')) == "-.inf"
+        assert bl._to_ros2_yaml(3.14) == "3.14"
+
+    def test_empty_containers(self, bl):
+        """Test empty lists and dicts."""
+        assert bl._to_ros2_yaml([]) == "[]"
+        assert bl._to_ros2_yaml({}) == "{}"
+
+    def test_describe_only_substitution(self, bl):
+        """Test a substitution that only has describe() (duck typing)."""
+        class DescribeOnlySub:
+            def describe(self): return "description"
+            
+        sub = DescribeOnlySub()
+        assert bl._to_ros2_yaml(sub) is sub

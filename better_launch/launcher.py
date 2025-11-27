@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generator, Literal, TYPE_CHECKING
+from typing import Any, Callable, Generator, Literal, TYPE_CHECKING, Union
 import importlib
 import sys
 import os
@@ -1836,11 +1836,17 @@ Takeoff in 3... 2... 1...
         )
         self.ros2_actions(ros2_include)
 
-    def _to_ros2_yaml(self, val: Any) -> Any:
+    def _to_ros2_yaml(self, val: Any) -> Union[str, Any]:
         """Convert a value to a YAML string suitable for ROS2 launch arguments.
         
         Optimized for performance on embedded platforms (Jetson Orin Nano).
         Uses direct type dispatch for primitives to avoid json.dumps overhead.
+        
+        Returns
+        -------
+        Union[str, Any]
+            A YAML-formatted string for primitives/containers, or the object itself 
+            if it is a ROS2 Substitution (duck-typed).
         """
         if val is None:
             return ""
@@ -1850,7 +1856,15 @@ Takeoff in 3... 2... 1...
         t = type(val)
         if t is bool:
             return "true" if val else "false"
-        elif t is int or t is float:
+        elif t is int:
+            return str(val)
+        elif t is float:
+            if val != val:  # NaN
+                return ".NaN"
+            if val == float('inf'):
+                return ".inf"
+            if val == float('-inf'):
+                return "-.inf"
             return str(val)
         elif t is str:
             return val
