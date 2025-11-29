@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 # Mock ROS dependencies
 sys.modules["rclpy"] = MagicMock()
 sys.modules["rclpy.node"] = MagicMock()
+sys.modules["rclpy.qos"] = MagicMock()
 sys.modules["launch"] = MagicMock()
 sys.modules["launch.actions"] = MagicMock()
 sys.modules["launch.launch_description_sources"] = MagicMock()
