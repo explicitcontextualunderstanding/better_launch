@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 sys.modules["rclpy"] = MagicMock()
 sys.modules["rclpy.node"] = MagicMock()
 sys.modules["rclpy.qos"] = MagicMock()
+sys.modules["rclpy.parameter"] = MagicMock()
 sys.modules["launch"] = MagicMock()
 sys.modules["launch.actions"] = MagicMock()
 sys.modules["launch.launch_description_sources"] = MagicMock()
@@ -14,6 +15,7 @@ sys.modules["ament_index_python"] = MagicMock()
 sys.modules["ament_index_python.packages"] = MagicMock()
 sys.modules["lifecycle_msgs"] = MagicMock()
 sys.modules["lifecycle_msgs.msg"] = MagicMock()
+sys.modules["lifecycle_msgs.srv"] = MagicMock()
 
 from better_launch.launcher import BetterLaunch
 
