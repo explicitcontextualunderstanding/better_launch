@@ -12,6 +12,8 @@ sys.modules["launch.actions"] = MagicMock()
 sys.modules["launch.launch_description_sources"] = MagicMock()
 sys.modules["ament_index_python"] = MagicMock()
 sys.modules["ament_index_python.packages"] = MagicMock()
+sys.modules["lifecycle_msgs"] = MagicMock()
+sys.modules["lifecycle_msgs.msg"] = MagicMock()
 
 from better_launch.launcher import BetterLaunch
 
